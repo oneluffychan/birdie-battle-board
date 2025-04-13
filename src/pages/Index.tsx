@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -11,7 +10,7 @@ import LeaderBoard from '@/components/LeaderBoard';
 import { BadmintonProvider, useBadminton } from '@/context/BadmintonContext';
 import { Shuttlecock } from '@/components/icons/Shuttlecock';
 
-const ScoreKeeper = () => {
+const ScoreKeeperContent = () => {
   const { match } = useBadminton();
 
   return (
@@ -110,12 +109,16 @@ const ScoreKeeper = () => {
   );
 };
 
-const Index = () => {
+const ScoreKeeper = () => {
   return (
     <BadmintonProvider>
-      <ScoreKeeper />
+      <ScoreKeeperContent />
     </BadmintonProvider>
   );
+};
+
+const Index = () => {
+  return <ScoreKeeper />;
 };
 
 export default Index;
