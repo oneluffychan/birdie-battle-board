@@ -195,6 +195,7 @@ export const saveGameHistory = async (match: Match): Promise<void> => {
 
 export const getGameHistory = async (): Promise<GameHistory[]> => {
   try {
+    // Fetch matches with their teams
     const { data: matches, error: matchesError } = await supabase
       .from('matches')
       .select(`
@@ -204,8 +205,8 @@ export const getGameHistory = async (): Promise<GameHistory[]> => {
         guest_team_score, 
         completed,
         winner_id,
-        teams!matches_home_team_id_fkey (id, name),
-        teams!matches_guest_team_id_fkey (id, name)
+        home_team_id,
+        guest_team_id
       `)
       .order('date', { ascending: false });
     
@@ -213,38 +214,92 @@ export const getGameHistory = async (): Promise<GameHistory[]> => {
       console.error("Error getting match history:", matchesError);
       return [];
     }
+
+    // Fetch home teams
+    const { data: homeTeams, error: homeTeamsError } = await supabase
+      .from('teams')
+      .select('id, name')
+      .in('id', matches.map(match => match.home_team_id));
+
+    if (homeTeamsError) {
+      console.error("Error getting home teams:", homeTeamsError);
+      return [];
+    }
+
+    // Fetch guest teams
+    const { data: guestTeams, error: guestTeamsError } = await supabase
+      .from('teams')
+      .select('id, name')
+      .in('id', matches.map(match => match.guest_team_id));
+
+    if (guestTeamsError) {
+      console.error("Error getting guest teams:", guestTeamsError);
+      return [];
+    }
     
     const gameHistory: GameHistory[] = [];
     
     for (const match of matches || []) {
       // Get home team players
-      const { data: homePlayers } = await supabase
+      const { data: homePlayerMatches, error: homePlayersError } = await supabase
         .from('match_players')
-        .select('players(name)')
+        .select('player_id')
         .eq('match_id', match.id)
-        .eq('team_id', match.teams.id);
+        .eq('team_id', match.home_team_id);
+      
+      if (homePlayersError) {
+        console.error("Error getting home players:", homePlayersError);
+        continue;
+      }
+
+      // Get player names for home team
+      const { data: homePlayers, error: homePlayerNamesError } = await supabase
+        .from('players')
+        .select('name')
+        .in('id', homePlayerMatches.map(pm => pm.player_id));
+
+      if (homePlayerNamesError) {
+        console.error("Error getting home player names:", homePlayerNamesError);
+        continue;
+      }
       
       // Get guest team players
-      const { data: guestPlayers } = await supabase
+      const { data: guestPlayerMatches, error: guestPlayersError } = await supabase
         .from('match_players')
-        .select('players(name)')
+        .select('player_id')
         .eq('match_id', match.id)
-        .eq('team_id', match.teams.id);
+        .eq('team_id', match.guest_team_id);
       
-      const homeTeam = match.teams.find((team: any) => team.id === match.home_team_id);
-      const guestTeam = match.teams.find((team: any) => team.id === match.guest_team_id);
+      if (guestPlayersError) {
+        console.error("Error getting guest players:", guestPlayersError);
+        continue;
+      }
+
+      // Get player names for guest team
+      const { data: guestPlayers, error: guestPlayerNamesError } = await supabase
+        .from('players')
+        .select('name')
+        .in('id', guestPlayerMatches.map(pm => pm.player_id));
+
+      if (guestPlayerNamesError) {
+        console.error("Error getting guest player names:", guestPlayerNamesError);
+        continue;
+      }
+      
+      const homeTeam = homeTeams.find(team => team.id === match.home_team_id);
+      const guestTeam = guestTeams.find(team => team.id === match.guest_team_id);
       
       gameHistory.push({
         id: match.id,
         date: match.date,
         homeTeam: {
           name: homeTeam?.name || 'Home Team',
-          players: homePlayers?.map((p: any) => p.players.name) || [],
+          players: homePlayers.map(p => p.name),
           score: match.home_team_score
         },
         guestTeam: {
           name: guestTeam?.name || 'Guest Team',
-          players: guestPlayers?.map((p: any) => p.players.name) || [],
+          players: guestPlayers.map(p => p.name),
           score: match.guest_team_score
         },
         winner: match.winner_id === match.home_team_id ? 'home' : 'guest'
@@ -275,8 +330,8 @@ export const updatePlayerStats = async (
       const { error } = await supabase
         .from('match_players')
         .update({
-          serves_count: supabase.sql`serves_count + ${isServing ? 1 : 0}`,
-          receives_count: supabase.sql`receives_count + ${isReceiving ? 1 : 0}`
+          serves_count: isServing ? supabase.rpc('increment', { count: 1 }) : undefined,
+          receives_count: isReceiving ? supabase.rpc('increment', { count: 1 }) : undefined
         })
         .eq('match_id', match.id)
         .eq('player_id', player.id);
@@ -304,11 +359,11 @@ export const getPlayerStats = async (): Promise<PlayerStats[]> => {
     return (data || []).map(player => ({
       id: player.id,
       name: player.name,
-      gamesPlayed: player.games_played,
-      gamesWon: player.games_won,
-      winPercentage: player.win_percentage,
-      totalServes: player.total_serves,
-      totalReceives: player.total_receives
+      gamesPlayed: player.games_played || 0,
+      gamesWon: player.games_won || 0,
+      winPercentage: player.win_percentage || 0,
+      totalServes: player.total_serves || 0,
+      totalReceives: player.total_receives || 0
     }));
   } catch (error) {
     console.error("Error getting player stats:", error);
@@ -334,11 +389,11 @@ export const getTopPlayers = async (limit = 5): Promise<PlayerStats[]> => {
     return (data || []).map(player => ({
       id: player.id,
       name: player.name,
-      gamesPlayed: player.games_played,
-      gamesWon: player.games_won,
-      winPercentage: player.win_percentage,
-      totalServes: player.total_serves,
-      totalReceives: player.total_receives
+      gamesPlayed: player.games_played || 0,
+      gamesWon: player.games_won || 0,
+      winPercentage: player.win_percentage || 0,
+      totalServes: player.total_serves || 0,
+      totalReceives: player.total_receives || 0
     }));
   } catch (error) {
     console.error("Error getting top players:", error);

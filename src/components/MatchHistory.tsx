@@ -7,7 +7,8 @@ import { GameHistory } from '@/types/badminton';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Trophy } from 'lucide-react';
+import { Trophy, Info } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 const MatchHistory: React.FC = () => {
   const [history, setHistory] = useState<GameHistory[]>([]);
@@ -16,9 +17,14 @@ const MatchHistory: React.FC = () => {
   useEffect(() => {
     const fetchHistory = async () => {
       setLoading(true);
-      const data = await getGameHistory();
-      setHistory(data);
-      setLoading(false);
+      try {
+        const data = await getGameHistory();
+        setHistory(data);
+      } catch (error) {
+        console.error("Error fetching match history:", error);
+      } finally {
+        setLoading(false);
+      }
     };
 
     fetchHistory();
@@ -83,7 +89,15 @@ const MatchHistory: React.FC = () => {
                   </div>
                 </div>
                 <CardDescription>
-                  Players: {[...game.homeTeam.players, ...game.guestTeam.players].join(', ')}
+                  <Tooltip>
+                    <TooltipTrigger className="flex items-center">
+                      <span>Players: {[...game.homeTeam.players, ...game.guestTeam.players].join(', ')}</span>
+                      <Info className="h-3 w-3 ml-1 text-gray-400" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-xs">Match ID: {game.id}</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </CardDescription>
               </CardHeader>
               <CardContent>
