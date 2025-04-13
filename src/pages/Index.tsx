@@ -9,7 +9,7 @@ import MatchControls from '@/components/MatchControls';
 import MatchHistory from '@/components/MatchHistory';
 import LeaderBoard from '@/components/LeaderBoard';
 import { BadmintonProvider, useBadminton } from '@/context/BadmintonContext';
-import { Shuttlecock } from 'lucide-react';
+import { Shuttlecock } from '@/components/icons/Shuttlecock';
 
 const ScoreKeeper = () => {
   const { match } = useBadminton();
