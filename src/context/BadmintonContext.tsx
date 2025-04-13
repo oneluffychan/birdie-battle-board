@@ -269,15 +269,28 @@ export const BadmintonProvider = ({ children }: { children: React.ReactNode }) =
     });
   };
 
+  // Updated to handle deuce situations (winning by 2 points)
   const checkWinner = (): Team | undefined => {
     const { homeTeam, guestTeam, winningScore } = match;
     
+    // Regular win condition: reach or exceed winning score and be ahead by at least 2
     if (homeTeam.score >= winningScore && homeTeam.score >= guestTeam.score + 2) {
       return homeTeam;
     }
     
     if (guestTeam.score >= winningScore && guestTeam.score >= homeTeam.score + 2) {
       return guestTeam;
+    }
+    
+    // Deuce situation: both scores are at least the winning score
+    // Only someone ahead by 2 can win
+    if (homeTeam.score >= winningScore && guestTeam.score >= winningScore) {
+      if (homeTeam.score >= guestTeam.score + 2) {
+        return homeTeam;
+      }
+      if (guestTeam.score >= homeTeam.score + 2) {
+        return guestTeam;
+      }
     }
     
     return undefined;

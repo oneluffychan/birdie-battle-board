@@ -316,28 +316,44 @@ export const getGameHistory = async (): Promise<GameHistory[]> => {
 // Player Stats
 export const updatePlayerStats = async (
   match: Match, 
-  playerTeamId: string, 
+  teamId: string, 
   isServing: boolean, 
   isReceiving: boolean
 ): Promise<void> => {
   try {
-    const players = match.homeTeam.id === playerTeamId 
+    const players = match.homeTeam.id === teamId 
       ? match.homeTeam.players 
       : match.guestTeam.players;
       
     for (const player of players) {
+      // Get the current match_player record
+      const { data: matchPlayer, error: fetchError } = await supabase
+        .from('match_players')
+        .select('serves_count, receives_count')
+        .eq('match_id', match.id)
+        .eq('player_id', player.id)
+        .single();
+        
+      if (fetchError) {
+        console.error("Error fetching match player stats:", fetchError);
+        continue;
+      }
+      
       // Update serves and receives counts
-      const { error } = await supabase
+      const newServesCount = isServing ? (matchPlayer?.serves_count || 0) + 1 : matchPlayer?.serves_count || 0;
+      const newReceivesCount = isReceiving ? (matchPlayer?.receives_count || 0) + 1 : matchPlayer?.receives_count || 0;
+      
+      const { error: updateError } = await supabase
         .from('match_players')
         .update({
-          serves_count: isServing ? supabase.rpc('increment', { count: 1 }) : undefined,
-          receives_count: isReceiving ? supabase.rpc('increment', { count: 1 }) : undefined
+          serves_count: newServesCount,
+          receives_count: newReceivesCount
         })
         .eq('match_id', match.id)
         .eq('player_id', player.id);
         
-      if (error) {
-        console.error("Error updating player stats:", error);
+      if (updateError) {
+        console.error("Error updating player stats:", updateError);
       }
     }
   } catch (error) {

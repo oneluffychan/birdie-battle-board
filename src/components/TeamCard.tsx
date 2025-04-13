@@ -13,7 +13,7 @@ import {
 import { PlusCircle, MinusCircle, Edit, Check, User } from 'lucide-react';
 import { useBadminton } from '@/context/BadmintonContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getPlayerRoster } from '@/utils/playerRosterDB';
+import { getPlayerRoster } from '@/utils/supabaseDB';
 import { useToast } from '@/components/ui/use-toast';
 
 interface TeamCardProps {
@@ -26,6 +26,7 @@ const TeamCard: React.FC<TeamCardProps> = ({ team }) => {
   const [isEditingPlayers, setIsEditingPlayers] = useState(false);
   const [editingTeamName, setEditingTeamName] = useState(team.name);
   const [playerRoster, setPlayerRoster] = useState<PlayerRoster[]>([]);
+  const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   
   const [editingPlayerNames, setEditingPlayerNames] = useState<{ [key: string]: string }>(
@@ -36,8 +37,27 @@ const TeamCard: React.FC<TeamCardProps> = ({ team }) => {
   );
 
   useEffect(() => {
-    setPlayerRoster(getPlayerRoster());
+    if (isEditingPlayers) {
+      fetchPlayerRoster();
+    }
   }, [isEditingPlayers]);
+
+  const fetchPlayerRoster = async () => {
+    setLoading(true);
+    try {
+      const data = await getPlayerRoster();
+      setPlayerRoster(data);
+    } catch (error) {
+      console.error("Error fetching player roster:", error);
+      toast({
+        title: "Error",
+        description: "Could not load player roster",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleTeamNameEdit = () => {
     updateTeamName(team.id, editingTeamName);
@@ -133,7 +153,9 @@ const TeamCard: React.FC<TeamCardProps> = ({ team }) => {
             >
               <div className="flex items-center gap-2 w-full">
                 {isEditingPlayers ? (
-                  playerRoster.length > 0 ? (
+                  loading ? (
+                    <div className="w-full h-8 bg-gray-100 animate-pulse rounded" />
+                  ) : playerRoster.length > 0 ? (
                     <Select
                       value={editingPlayerNames[player.id]}
                       onValueChange={(value) => handleSelectPlayer(player.id, value)}
