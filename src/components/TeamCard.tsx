@@ -1,27 +1,43 @@
 
-import React, { useState } from 'react';
-import { Team, Player } from '@/types/badminton';
+import React, { useState, useEffect } from 'react';
+import { Team, Player, PlayerRoster } from '@/types/badminton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { PlusCircle, MinusCircle, Edit, Check } from 'lucide-react';
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { PlusCircle, MinusCircle, Edit, Check, User } from 'lucide-react';
 import { useBadminton } from '@/context/BadmintonContext';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getPlayerRoster } from '@/utils/playerRosterDB';
+import { useToast } from '@/components/ui/use-toast';
 
 interface TeamCardProps {
   team: Team;
 }
 
 const TeamCard: React.FC<TeamCardProps> = ({ team }) => {
-  const { updateTeamName, updatePlayerName, incrementScore, decrementScore } = useBadminton();
+  const { updateTeamName, updatePlayerName, incrementScore, decrementScore, isSingles } = useBadminton();
   const [isEditingTeamName, setIsEditingTeamName] = useState(false);
   const [isEditingPlayers, setIsEditingPlayers] = useState(false);
   const [editingTeamName, setEditingTeamName] = useState(team.name);
+  const [playerRoster, setPlayerRoster] = useState<PlayerRoster[]>([]);
+  const { toast } = useToast();
+  
   const [editingPlayerNames, setEditingPlayerNames] = useState<{ [key: string]: string }>(
     team.players.reduce((acc, player) => {
       acc[player.id] = player.name;
       return acc;
     }, {} as { [key: string]: string })
   );
+
+  useEffect(() => {
+    setPlayerRoster(getPlayerRoster());
+  }, [isEditingPlayers]);
 
   const handleTeamNameEdit = () => {
     updateTeamName(team.id, editingTeamName);
@@ -41,6 +57,13 @@ const TeamCard: React.FC<TeamCardProps> = ({ team }) => {
 
   const handleRemovePoint = () => {
     decrementScore(team.id);
+  };
+
+  const handleSelectPlayer = (playerId: string, selectedPlayerName: string) => {
+    setEditingPlayerNames({
+      ...editingPlayerNames,
+      [playerId]: selectedPlayerName
+    });
   };
 
   return (
@@ -108,19 +131,37 @@ const TeamCard: React.FC<TeamCardProps> = ({ team }) => {
               className="flex items-center justify-between"
               whileHover={{ scale: 1.02 }}
             >
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 w-full">
                 {isEditingPlayers ? (
-                  <Input
-                    value={editingPlayerNames[player.id]}
-                    onChange={(e) => 
-                      setEditingPlayerNames({
-                        ...editingPlayerNames,
-                        [player.id]: e.target.value,
-                      })
-                    }
-                    className="h-8 text-sm"
-                    onKeyDown={(e) => e.key === 'Enter' && handlePlayerNameEdit()}
-                  />
+                  playerRoster.length > 0 ? (
+                    <Select
+                      value={editingPlayerNames[player.id]}
+                      onValueChange={(value) => handleSelectPlayer(player.id, value)}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select player" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {playerRoster.map((rosterPlayer) => (
+                          <SelectItem key={rosterPlayer.id} value={rosterPlayer.name}>
+                            {rosterPlayer.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input
+                      value={editingPlayerNames[player.id]}
+                      onChange={(e) => 
+                        setEditingPlayerNames({
+                          ...editingPlayerNames,
+                          [player.id]: e.target.value,
+                        })
+                      }
+                      className="h-8 text-sm"
+                      onKeyDown={(e) => e.key === 'Enter' && handlePlayerNameEdit()}
+                    />
+                  )
                 ) : (
                   <span className={`font-medium ${team.isHomeTeam ? 'text-blue-600' : 'text-purple-600'}`}>
                     {player.name}
@@ -128,27 +169,29 @@ const TeamCard: React.FC<TeamCardProps> = ({ team }) => {
                 )}
               </div>
               
-              {player.isServing && (
-                <motion.span 
-                  className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full"
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  exit={{ scale: 0 }}
-                >
-                  Serving
-                </motion.span>
-              )}
-              
-              {player.isReceiving && (
-                <motion.span 
-                  className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full"
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  exit={{ scale: 0 }}
-                >
-                  Receiving
-                </motion.span>
-              )}
+              <div className="flex gap-2 items-center">
+                {player.isServing && (
+                  <motion.span 
+                    className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full"
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    exit={{ scale: 0 }}
+                  >
+                    Serving
+                  </motion.span>
+                )}
+                
+                {player.isReceiving && (
+                  <motion.span 
+                    className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full"
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    exit={{ scale: 0 }}
+                  >
+                    Receiving
+                  </motion.span>
+                )}
+              </div>
             </motion.li>
           ))}
         </ul>
@@ -191,7 +234,7 @@ const TeamCard: React.FC<TeamCardProps> = ({ team }) => {
           }`}
           key={team.score}
           initial={{ scale: 1 }}
-          animate={{ scale: [1, 1.2, 1], opacity: [1, 0.8, 1] }}
+          animate={{ scale: [1, 1.2, 1], opacity: [1,.8, 1] }}
           transition={{ duration: 0.3 }}
         >
           {team.score}

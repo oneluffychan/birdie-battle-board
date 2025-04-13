@@ -48,3 +48,8 @@ export interface PlayerStats {
   gamesWon: number;
   winPercentage: number;
 }
+
+export interface PlayerRoster {
+  id: string;
+  name: string;
+}

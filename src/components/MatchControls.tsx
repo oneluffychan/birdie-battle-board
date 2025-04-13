@@ -1,126 +1,101 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Share2, RotateCcw, UsersRound, User } from 'lucide-react';
+import { RotateCcw, Play, Pause, Users, Award } from 'lucide-react';
 import { useBadminton } from '@/context/BadmintonContext';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { motion } from 'framer-motion';
+import PlayerRoster from './PlayerRoster';
 
-const MatchControls: React.FC = () => {
-  const { resetMatch, setWinningScore, match, toggleMatchType, isSingles } = useBadminton();
-  const [winningScore, setWinningScoreLocal] = useState(match.winningScore.toString());
-  const [showShareOptions, setShowShareOptions] = useState(false);
+const MatchControls = () => {
+  const { resetMatch, completeMatch, setWinningScore, toggleMatchType, isSingles, match } = useBadminton();
+  const [showConfirmReset, setShowConfirmReset] = useState(false);
 
-  const handleWinningScoreChange = () => {
-    const scoreNumber = parseInt(winningScore);
-    if (!isNaN(scoreNumber) && scoreNumber > 0) {
-      setWinningScore(scoreNumber);
+  const handleReset = () => {
+    if (showConfirmReset) {
+      resetMatch();
+      setShowConfirmReset(false);
+    } else {
+      setShowConfirmReset(true);
     }
   };
 
-  const shareMatch = async () => {
-    try {
-      const { homeTeam, guestTeam } = match;
-      const shareText = `Badminton Match: ${homeTeam.name} ${homeTeam.score} - ${guestTeam.score} ${guestTeam.name}`;
-      
-      if (navigator.share) {
-        await navigator.share({
-          title: 'Badminton Match Result',
-          text: shareText
-        });
-      } else {
-        // Fallback for browsers without Web Share API
-        navigator.clipboard.writeText(shareText);
-        window.alert('Result copied to clipboard!');
-      }
-    } catch (error) {
-      console.error('Error sharing:', error);
-    }
+  const handleWinningScoreChange = (value: string) => {
+    setWinningScore(parseInt(value));
   };
 
   return (
-    <motion.div 
-      className="flex justify-between items-center w-full py-4"
-      initial={{ opacity: 0, y: -10 }}
+    <motion.div
+      className="mb-6 p-4 bg-white rounded-xl shadow-sm flex flex-wrap gap-3 justify-between items-center"
+      initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
     >
-      <div>
-        <motion.div
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
+      <div className="flex gap-2 items-center">
+        <Button
+          variant={showConfirmReset ? "destructive" : "outline"}
+          size="sm"
+          onClick={handleReset}
+          className="flex items-center gap-1"
         >
-          <Button
-            variant="outline"
-            className="bg-blue-500 text-white hover:bg-blue-600 flex items-center gap-2"
-            onClick={toggleMatchType}
-          >
-            {isSingles ? <User className="h-5 w-5" /> : <UsersRound className="h-5 w-5" />}
-            {isSingles ? 'Singles' : 'Doubles'}
-          </Button>
-        </motion.div>
+          <RotateCcw className="h-4 w-4" />
+          {showConfirmReset ? "Confirm Reset" : "Reset Match"}
+        </Button>
+
+        <Button 
+          variant="outline"
+          size="sm"
+          onClick={toggleMatchType}
+          className="flex items-center gap-1"
+        >
+          <Users className="h-4 w-4" />
+          {isSingles ? "Singles" : "Doubles"}
+        </Button>
+
+        <Button 
+          variant="outline"
+          size="sm" 
+          onClick={completeMatch}
+          disabled={match.completed}
+          className="flex items-center gap-1"
+        >
+          <Award className="h-4 w-4" />
+          Complete Match
+        </Button>
       </div>
-
-      <div className="flex gap-3">
-        {/* Winning Score Setting */}
-        <Dialog>
-          <DialogTrigger asChild>
-            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-              <Button variant="outline" className="flex items-center gap-2">
-                Win: {match.winningScore}
-              </Button>
-            </motion.div>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Set Winning Score</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="winning-score">Points needed to win:</Label>
-                <Input
-                  id="winning-score"
-                  type="number"
-                  value={winningScore}
-                  onChange={(e) => setWinningScoreLocal(e.target.value)}
-                  min="1"
-                />
-                <p className="text-sm text-gray-500">
-                  A player needs to be ahead by 2 points to win after reaching this score.
-                </p>
-              </div>
-              <Button onClick={handleWinningScoreChange} className="w-full">
-                Save Changes
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        {/* Reset Button */}
-        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-          <Button 
-            variant="outline" 
-            onClick={resetMatch}
-            className="bg-purple-100 text-purple-700 hover:bg-purple-200 border-purple-200"
+      
+      <div className="flex items-center gap-3">
+        <PlayerRoster />
+        
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-500">Winning Score:</span>
+          <Select
+            value={match.winningScore.toString()}
+            onValueChange={handleWinningScoreChange}
           >
-            <RotateCcw className="h-5 w-5 mr-2" />
-            Reset
-          </Button>
-        </motion.div>
-
-        {/* Share Button */}
-        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-          <Button 
-            variant="outline" 
-            onClick={shareMatch}
-            className="bg-purple-500 text-white hover:bg-purple-600"
-          >
-            <Share2 className="h-5 w-5 mr-2" />
-            Share
-          </Button>
-        </motion.div>
+            <SelectTrigger className="w-[80px] h-9">
+              <SelectValue placeholder="21" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="11">11</SelectItem>
+              <SelectItem value="15">15</SelectItem>
+              <SelectItem value="21">21</SelectItem>
+              <SelectItem value="30">30</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
     </motion.div>
   );

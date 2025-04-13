@@ -70,7 +70,6 @@ export const BadmintonProvider = ({ children }: { children: React.ReactNode }) =
   const resetMatch = () => {
     const { homeTeam, guestTeam } = match;
     
-    // Reset scores but keep team names and player names
     setMatch({
       ...createDefaultMatch(),
       homeTeam: {
@@ -139,13 +138,10 @@ export const BadmintonProvider = ({ children }: { children: React.ReactNode }) =
   };
 
   const updateServeReceive = (isHomeTeamPoint: boolean) => {
-    // Logic to update who's serving/receiving based on score and badminton rules
     setMatch(prev => {
-      // Get the team that won the point (this team will serve next)
       const servingTeam = isHomeTeamPoint ? prev.homeTeam : prev.guestTeam;
       const receivingTeam = isHomeTeamPoint ? prev.guestTeam : prev.homeTeam;
       
-      // For singles, alternate serving sides
       if (isSingles) {
         return {
           ...prev,
@@ -168,12 +164,9 @@ export const BadmintonProvider = ({ children }: { children: React.ReactNode }) =
         };
       }
       
-      // For doubles, follow doubles serving rotation
-      // Find current server and receiver indexes
       const servingPlayerIdx = servingTeam.players.findIndex(p => p.isServing);
       const receivingPlayerIdx = receivingTeam.players.findIndex(p => p.isReceiving);
       
-      // Calculate the next server and receiver
       const nextServingPlayerIdx = (prev.homeTeam.score + prev.guestTeam.score) % 4 < 2 ? 0 : 1;
       const nextReceivingPlayerIdx = ((prev.homeTeam.score + prev.guestTeam.score) % 4 < 2) ? 0 : 1;
       
@@ -206,12 +199,10 @@ export const BadmintonProvider = ({ children }: { children: React.ReactNode }) =
   const toggleMatchType = () => {
     setIsSingles(prev => !prev);
     
-    // Update the match to reflect singles or doubles
     setMatch(prev => {
       const newMatchType = !isSingles;
       
       if (newMatchType) {
-        // Going to singles mode - keep only the first player in each team
         return {
           ...prev,
           homeTeam: {
@@ -224,7 +215,6 @@ export const BadmintonProvider = ({ children }: { children: React.ReactNode }) =
           }
         };
       } else {
-        // Going back to doubles - add a second player if needed
         return {
           ...prev,
           homeTeam: {
@@ -254,7 +244,6 @@ export const BadmintonProvider = ({ children }: { children: React.ReactNode }) =
   const checkWinner = (): Team | undefined => {
     const { homeTeam, guestTeam, winningScore } = match;
     
-    // Check if either team has reached the winning score
     if (homeTeam.score >= winningScore && homeTeam.score >= guestTeam.score + 2) {
       return homeTeam;
     }
@@ -281,10 +270,8 @@ export const BadmintonProvider = ({ children }: { children: React.ReactNode }) =
         }
       };
       
-      // Update who's serving based on the rules
       updateServeReceive(isHomeTeam);
       
-      // Check for a winner
       const winner = checkWinner();
       if (winner) {
         toast({
@@ -292,7 +279,6 @@ export const BadmintonProvider = ({ children }: { children: React.ReactNode }) =
           description: `${winner.name} has won the match!`,
         });
         
-        // Save the match result
         saveMatchResult(updatedMatch, winner);
         
         return {
@@ -333,7 +319,6 @@ export const BadmintonProvider = ({ children }: { children: React.ReactNode }) =
         winner: undefined
       };
       
-      // Update who's serving based on the rules
       updateServeReceive(!isHomeTeam);
       
       return updatedMatch;
@@ -376,16 +361,13 @@ export const BadmintonProvider = ({ children }: { children: React.ReactNode }) =
       winner: winner.isHomeTeam ? 'home' : 'guest'
     };
     
-    // Save to local storage
     saveGameHistory(gameHistory);
     
-    // Update player stats
     updatePlayerStats(
       winner.players.map(p => p.name), 
       true
     );
     
-    // Update the losing team's player stats
     const losingTeam = winner.isHomeTeam 
       ? currentMatch.guestTeam 
       : currentMatch.homeTeam;
