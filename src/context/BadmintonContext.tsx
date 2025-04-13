@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { nanoid } from 'nanoid';
 import { Match, Team, Player } from '@/types/badminton';
@@ -269,26 +268,29 @@ export const BadmintonProvider = ({ children }: { children: React.ReactNode }) =
     });
   };
 
-  // Updated to handle deuce situations (winning by 2 points)
   const checkWinner = (): Team | undefined => {
     const { homeTeam, guestTeam, winningScore } = match;
     
-    // Regular win condition: reach or exceed winning score and be ahead by at least 2
-    if (homeTeam.score >= winningScore && homeTeam.score >= guestTeam.score + 2) {
+    if (homeTeam.score >= winningScore && homeTeam.score >= guestTeam.score + 2 && guestTeam.score < winningScore - 1) {
       return homeTeam;
     }
     
-    if (guestTeam.score >= winningScore && guestTeam.score >= homeTeam.score + 2) {
+    if (guestTeam.score >= winningScore && guestTeam.score >= homeTeam.score + 2 && homeTeam.score < winningScore - 1) {
       return guestTeam;
     }
     
-    // Deuce situation: both scores are at least the winning score
-    // Only someone ahead by 2 can win
-    if (homeTeam.score >= winningScore && guestTeam.score >= winningScore) {
+    if (homeTeam.score >= winningScore - 1 && guestTeam.score >= winningScore - 1) {
       if (homeTeam.score >= guestTeam.score + 2) {
         return homeTeam;
       }
       if (guestTeam.score >= homeTeam.score + 2) {
+        return guestTeam;
+      }
+      
+      if (winningScore === 21 && homeTeam.score === 30) {
+        return homeTeam;
+      }
+      if (winningScore === 21 && guestTeam.score === 30) {
         return guestTeam;
       }
     }
@@ -392,7 +394,6 @@ export const BadmintonProvider = ({ children }: { children: React.ReactNode }) =
       completed: true
     };
     
-    // Save match to Supabase
     saveGameHistory(updatedMatch);
   };
 
