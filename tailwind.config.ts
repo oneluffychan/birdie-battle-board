@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -52,16 +53,8 @@ export default {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
 				},
-				sidebar: {
-					DEFAULT: 'hsl(var(--sidebar-background))',
-					foreground: 'hsl(var(--sidebar-foreground))',
-					primary: 'hsl(var(--sidebar-primary))',
-					'primary-foreground': 'hsl(var(--sidebar-primary-foreground))',
-					accent: 'hsl(var(--sidebar-accent))',
-					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
-					border: 'hsl(var(--sidebar-border))',
-					ring: 'hsl(var(--sidebar-ring))'
-				}
+				"home-team": 'hsl(var(--home-team))',
+				"guest-team": 'hsl(var(--guest-team))',
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
@@ -69,26 +62,44 @@ export default {
 				sm: 'calc(var(--radius) - 4px)'
 			},
 			keyframes: {
-				'accordion-down': {
-					from: {
-						height: '0'
-					},
-					to: {
-						height: 'var(--radix-accordion-content-height)'
-					}
+				"accordion-down": {
+					from: { height: '0' },
+					to: { height: 'var(--radix-accordion-content-height)' },
 				},
-				'accordion-up': {
-					from: {
-						height: 'var(--radix-accordion-content-height)'
-					},
-					to: {
-						height: '0'
-					}
-				}
+				"accordion-up": {
+					from: { height: 'var(--radix-accordion-content-height)' },
+					to: { height: '0' },
+				},
+				"pulse-score": {
+					"0%, 100%": { transform: "scale(1)" },
+					"50%": { transform: "scale(1.2)" },
+				},
+				"float-in": {
+					"0%": { transform: "translateY(20px)", opacity: "0" },
+					"100%": { transform: "translateY(0)", opacity: "1" },
+				},
+				"slide-in": {
+					"0%": { transform: "translateX(-20px)", opacity: "0" },
+					"100%": { transform: "translateX(0)", opacity: "1" },
+				},
+				"rotate-serve": {
+					"0%": { transform: "rotate(0deg)" },
+					"100%": { transform: "rotate(360deg)" },
+				},
 			},
 			animation: {
-				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				"accordion-down": "accordion-down 0.2s ease-out",
+				"accordion-up": "accordion-up 0.2s ease-out",
+				"pulse-score": "pulse-score 0.5s ease-in-out",
+				"float-in": "float-in 0.5s ease-out forwards",
+				"slide-in": "slide-in 0.5s ease-out forwards",
+				"rotate-serve": "rotate-serve 0.7s ease-in-out",
+			},
+			backgroundImage: {
+				'gradient-home': 'linear-gradient(135deg, hsl(223, 100%, 61%) 0%, hsl(223, 100%, 71%) 100%)',
+				'gradient-guest': 'linear-gradient(135deg, hsl(265, 83%, 45%) 0%, hsl(265, 83%, 55%) 100%)',
+				'gradient-primary': 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary)/0.8) 100%)',
+				'gradient-secondary': 'linear-gradient(135deg, hsl(var(--secondary)) 0%, hsl(var(--secondary)/0.8) 100%)'
 			}
 		}
 	},

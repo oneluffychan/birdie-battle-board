@@ -1,0 +1,438 @@
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { nanoid } from 'nanoid';
+import { Match, Team, Player } from '@/types/badminton';
+import { saveGameHistory, updatePlayerStats } from '@/utils/localStorageDB';
+import { useToast } from "@/components/ui/use-toast";
+
+interface BadmintonContextType {
+  match: Match;
+  createMatch: (winningScore: number) => void;
+  resetMatch: () => void;
+  updateTeamName: (teamId: string, name: string) => void;
+  updatePlayerName: (teamId: string, playerId: string, name: string) => void;
+  incrementScore: (teamId: string) => void;
+  decrementScore: (teamId: string) => void;
+  completeMatch: () => void;
+  setWinningScore: (score: number) => void;
+  toggleMatchType: () => void;
+  isSingles: boolean;
+}
+
+const defaultPlayers = (isHomeTeam: boolean): Player[] => [
+  {
+    id: nanoid(), 
+    name: isHomeTeam ? 'Player 1' : 'Player 3',
+    isServing: isHomeTeam,
+    isReceiving: !isHomeTeam
+  },
+  { 
+    id: nanoid(), 
+    name: isHomeTeam ? 'Player 2' : 'Player 4'
+  }
+];
+
+const createDefaultMatch = (): Match => ({
+  id: nanoid(),
+  date: new Date().toISOString(),
+  homeTeam: {
+    id: nanoid(),
+    name: 'Home Team',
+    players: defaultPlayers(true),
+    score: 0,
+    color: 'bg-gradient-home',
+    isHomeTeam: true
+  },
+  guestTeam: {
+    id: nanoid(),
+    name: 'Guest Team',
+    players: defaultPlayers(false),
+    score: 0,
+    color: 'bg-gradient-guest',
+    isHomeTeam: false
+  },
+  winningScore: 21,
+  completed: false
+});
+
+const BadmintonContext = createContext<BadmintonContextType | undefined>(undefined);
+
+export const BadmintonProvider = ({ children }: { children: React.ReactNode }) => {
+  const [match, setMatch] = useState<Match>(createDefaultMatch());
+  const [isSingles, setIsSingles] = useState<boolean>(false);
+  const { toast } = useToast();
+
+  const createMatch = (winningScore: number) => {
+    const newMatch = createDefaultMatch();
+    newMatch.winningScore = winningScore;
+    setMatch(newMatch);
+  };
+
+  const resetMatch = () => {
+    const { homeTeam, guestTeam } = match;
+    
+    // Reset scores but keep team names and player names
+    setMatch({
+      ...createDefaultMatch(),
+      homeTeam: {
+        ...match.homeTeam,
+        score: 0,
+        players: match.homeTeam.players.map((player, idx) => ({
+          ...player,
+          isServing: idx === 0 && match.homeTeam.isHomeTeam,
+          isReceiving: idx === 0 && !match.homeTeam.isHomeTeam
+        }))
+      },
+      guestTeam: {
+        ...match.guestTeam,
+        score: 0,
+        players: match.guestTeam.players.map((player, idx) => ({
+          ...player,
+          isServing: idx === 0 && match.guestTeam.isHomeTeam,
+          isReceiving: idx === 0 && !match.guestTeam.isHomeTeam
+        }))
+      },
+      winningScore: match.winningScore
+    });
+    
+    toast({
+      title: "Match Reset",
+      description: "The match has been reset. Scores are back to 0.",
+    });
+  };
+
+  const updateTeamName = (teamId: string, name: string) => {
+    setMatch(prev => {
+      if (prev.homeTeam.id === teamId) {
+        return { ...prev, homeTeam: { ...prev.homeTeam, name } };
+      } else if (prev.guestTeam.id === teamId) {
+        return { ...prev, guestTeam: { ...prev.guestTeam, name } };
+      }
+      return prev;
+    });
+  };
+
+  const updatePlayerName = (teamId: string, playerId: string, name: string) => {
+    setMatch(prev => {
+      if (prev.homeTeam.id === teamId) {
+        return {
+          ...prev,
+          homeTeam: {
+            ...prev.homeTeam,
+            players: prev.homeTeam.players.map(p => 
+              p.id === playerId ? { ...p, name } : p
+            )
+          }
+        };
+      } else if (prev.guestTeam.id === teamId) {
+        return {
+          ...prev,
+          guestTeam: {
+            ...prev.guestTeam,
+            players: prev.guestTeam.players.map(p => 
+              p.id === playerId ? { ...p, name } : p
+            )
+          }
+        };
+      }
+      return prev;
+    });
+  };
+
+  const updateServeReceive = (isHomeTeamPoint: boolean) => {
+    // Logic to update who's serving/receiving based on score and badminton rules
+    setMatch(prev => {
+      // Get the team that won the point (this team will serve next)
+      const servingTeam = isHomeTeamPoint ? prev.homeTeam : prev.guestTeam;
+      const receivingTeam = isHomeTeamPoint ? prev.guestTeam : prev.homeTeam;
+      
+      // For singles, alternate serving sides
+      if (isSingles) {
+        return {
+          ...prev,
+          homeTeam: {
+            ...prev.homeTeam,
+            players: prev.homeTeam.players.map((p, idx) => ({
+              ...p,
+              isServing: isHomeTeamPoint,
+              isReceiving: !isHomeTeamPoint,
+            })).slice(0, 1),
+          },
+          guestTeam: {
+            ...prev.guestTeam,
+            players: prev.guestTeam.players.map((p, idx) => ({
+              ...p,
+              isServing: !isHomeTeamPoint,
+              isReceiving: isHomeTeamPoint,
+            })).slice(0, 1),
+          }
+        };
+      }
+      
+      // For doubles, follow doubles serving rotation
+      // Find current server and receiver indexes
+      const servingPlayerIdx = servingTeam.players.findIndex(p => p.isServing);
+      const receivingPlayerIdx = receivingTeam.players.findIndex(p => p.isReceiving);
+      
+      // Calculate the next server and receiver
+      const nextServingPlayerIdx = (prev.homeTeam.score + prev.guestTeam.score) % 4 < 2 ? 0 : 1;
+      const nextReceivingPlayerIdx = ((prev.homeTeam.score + prev.guestTeam.score) % 4 < 2) ? 0 : 1;
+      
+      const updatedHomeTeam = {
+        ...prev.homeTeam,
+        players: prev.homeTeam.players.map((p, idx) => ({
+          ...p,
+          isServing: isHomeTeamPoint && idx === nextServingPlayerIdx,
+          isReceiving: !isHomeTeamPoint && idx === nextReceivingPlayerIdx
+        }))
+      };
+      
+      const updatedGuestTeam = {
+        ...prev.guestTeam,
+        players: prev.guestTeam.players.map((p, idx) => ({
+          ...p,
+          isServing: !isHomeTeamPoint && idx === nextServingPlayerIdx,
+          isReceiving: isHomeTeamPoint && idx === nextReceivingPlayerIdx
+        }))
+      };
+      
+      return {
+        ...prev,
+        homeTeam: updatedHomeTeam,
+        guestTeam: updatedGuestTeam
+      };
+    });
+  };
+
+  const toggleMatchType = () => {
+    setIsSingles(prev => !prev);
+    
+    // Update the match to reflect singles or doubles
+    setMatch(prev => {
+      const newMatchType = !isSingles;
+      
+      if (newMatchType) {
+        // Going to singles mode - keep only the first player in each team
+        return {
+          ...prev,
+          homeTeam: {
+            ...prev.homeTeam,
+            players: prev.homeTeam.players.slice(0, 1)
+          },
+          guestTeam: {
+            ...prev.guestTeam,
+            players: prev.guestTeam.players.slice(0, 1)
+          }
+        };
+      } else {
+        // Going back to doubles - add a second player if needed
+        return {
+          ...prev,
+          homeTeam: {
+            ...prev.homeTeam,
+            players: prev.homeTeam.players.length < 2 
+              ? [...prev.homeTeam.players, { id: nanoid(), name: 'Player 2' }] 
+              : prev.homeTeam.players
+          },
+          guestTeam: {
+            ...prev.guestTeam,
+            players: prev.guestTeam.players.length < 2 
+              ? [...prev.guestTeam.players, { id: nanoid(), name: 'Player 4' }] 
+              : prev.guestTeam.players
+          }
+        };
+      }
+    });
+    
+    toast({
+      title: !isSingles ? "Singles Mode" : "Doubles Mode",
+      description: !isSingles 
+        ? "Switched to singles match mode." 
+        : "Switched to doubles match mode."
+    });
+  };
+
+  const checkWinner = (): Team | undefined => {
+    const { homeTeam, guestTeam, winningScore } = match;
+    
+    // Check if either team has reached the winning score
+    if (homeTeam.score >= winningScore && homeTeam.score >= guestTeam.score + 2) {
+      return homeTeam;
+    }
+    
+    if (guestTeam.score >= winningScore && guestTeam.score >= homeTeam.score + 2) {
+      return guestTeam;
+    }
+    
+    return undefined;
+  };
+
+  const incrementScore = (teamId: string) => {
+    setMatch(prev => {
+      const isHomeTeam = prev.homeTeam.id === teamId;
+      const updatedMatch = {
+        ...prev,
+        homeTeam: {
+          ...prev.homeTeam,
+          score: isHomeTeam ? prev.homeTeam.score + 1 : prev.homeTeam.score
+        },
+        guestTeam: {
+          ...prev.guestTeam,
+          score: !isHomeTeam ? prev.guestTeam.score + 1 : prev.guestTeam.score
+        }
+      };
+      
+      // Update who's serving based on the rules
+      updateServeReceive(isHomeTeam);
+      
+      // Check for a winner
+      const winner = checkWinner();
+      if (winner) {
+        toast({
+          title: "Match Complete!",
+          description: `${winner.name} has won the match!`,
+        });
+        
+        // Save the match result
+        saveMatchResult(updatedMatch, winner);
+        
+        return {
+          ...updatedMatch,
+          winner,
+          completed: true
+        };
+      }
+      
+      return updatedMatch;
+    });
+  };
+
+  const decrementScore = (teamId: string) => {
+    setMatch(prev => {
+      const isHomeTeam = prev.homeTeam.id === teamId;
+      const currentScore = isHomeTeam ? prev.homeTeam.score : prev.guestTeam.score;
+      
+      if (currentScore <= 0) {
+        return prev;
+      }
+      
+      const updatedMatch = {
+        ...prev,
+        homeTeam: {
+          ...prev.homeTeam,
+          score: isHomeTeam && prev.homeTeam.score > 0 
+            ? prev.homeTeam.score - 1 
+            : prev.homeTeam.score
+        },
+        guestTeam: {
+          ...prev.guestTeam,
+          score: !isHomeTeam && prev.guestTeam.score > 0 
+            ? prev.guestTeam.score - 1 
+            : prev.guestTeam.score
+        },
+        completed: false,
+        winner: undefined
+      };
+      
+      // Update who's serving based on the rules
+      updateServeReceive(!isHomeTeam);
+      
+      return updatedMatch;
+    });
+  };
+
+  const completeMatch = () => {
+    const winner = match.homeTeam.score > match.guestTeam.score 
+      ? match.homeTeam 
+      : match.guestTeam;
+    
+    saveMatchResult(match, winner);
+    
+    setMatch(prev => ({
+      ...prev,
+      winner,
+      completed: true
+    }));
+    
+    toast({
+      title: "Match Manually Completed",
+      description: `${winner.name} has been recorded as the winner.`,
+    });
+  };
+
+  const saveMatchResult = (currentMatch: Match, winner: Team) => {
+    const gameHistory = {
+      id: nanoid(),
+      date: new Date().toISOString(),
+      homeTeam: {
+        name: currentMatch.homeTeam.name,
+        players: currentMatch.homeTeam.players.map(p => p.name),
+        score: currentMatch.homeTeam.score
+      },
+      guestTeam: {
+        name: currentMatch.guestTeam.name,
+        players: currentMatch.guestTeam.players.map(p => p.name),
+        score: currentMatch.guestTeam.score
+      },
+      winner: winner.isHomeTeam ? 'home' : 'guest'
+    };
+    
+    // Save to local storage
+    saveGameHistory(gameHistory);
+    
+    // Update player stats
+    updatePlayerStats(
+      winner.players.map(p => p.name), 
+      true
+    );
+    
+    // Update the losing team's player stats
+    const losingTeam = winner.isHomeTeam 
+      ? currentMatch.guestTeam 
+      : currentMatch.homeTeam;
+    
+    updatePlayerStats(
+      losingTeam.players.map(p => p.name),
+      false
+    );
+  };
+
+  const setWinningScore = (score: number) => {
+    setMatch(prev => ({
+      ...prev,
+      winningScore: score
+    }));
+    
+    toast({
+      title: "Winning Score Updated",
+      description: `The winning score is now set to ${score} points.`,
+    });
+  };
+
+  return (
+    <BadmintonContext.Provider
+      value={{
+        match,
+        createMatch,
+        resetMatch,
+        updateTeamName,
+        updatePlayerName,
+        incrementScore,
+        decrementScore,
+        completeMatch,
+        setWinningScore,
+        toggleMatchType,
+        isSingles
+      }}
+    >
+      {children}
+    </BadmintonContext.Provider>
+  );
+};
+
+export const useBadminton = () => {
+  const context = useContext(BadmintonContext);
+  if (context === undefined) {
+    throw new Error('useBadminton must be used within a BadmintonProvider');
+  }
+  return context;
+};
