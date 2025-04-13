@@ -1,15 +1,41 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
-import { getGameHistory } from '@/utils/localStorageDB';
+import { getGameHistory } from '@/utils/supabaseDB';
+import { GameHistory } from '@/types/badminton';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Trophy } from 'lucide-react';
 
 const MatchHistory: React.FC = () => {
-  const history = getGameHistory();
+  const [history, setHistory] = useState<GameHistory[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchHistory = async () => {
+      setLoading(true);
+      const data = await getGameHistory();
+      setHistory(data);
+      setLoading(false);
+    };
+
+    fetchHistory();
+  }, []);
+
+  if (loading) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="text-center py-8"
+      >
+        <p className="text-gray-500">Loading match history...</p>
+      </motion.div>
+    );
+  }
 
   if (history.length === 0) {
     return (
@@ -32,7 +58,7 @@ const MatchHistory: React.FC = () => {
       className="space-y-4"
     >
       <AnimatePresence>
-        {history.slice().reverse().map((game, index) => (
+        {history.map((game, index) => (
           <motion.div
             key={game.id}
             initial={{ opacity: 0, y: 20 }}

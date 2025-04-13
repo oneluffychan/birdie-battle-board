@@ -1,15 +1,45 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { getPlayerStats, getTopPlayers } from '@/utils/localStorageDB';
+import { getPlayerStats, getTopPlayers } from '@/utils/supabaseDB';
+import { PlayerStats } from '@/types/badminton';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Trophy, Medal, Award, Star } from 'lucide-react';
+import { Trophy, Medal, Award, Star, Server, MousePointer } from 'lucide-react';
 
 const LeaderBoard: React.FC = () => {
-  const allPlayers = getPlayerStats();
-  const topPlayers = getTopPlayers(5);
+  const [allPlayers, setAllPlayers] = useState<PlayerStats[]>([]);
+  const [topPlayers, setTopPlayers] = useState<PlayerStats[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      setLoading(true);
+      const [top, all] = await Promise.all([
+        getTopPlayers(5),
+        getPlayerStats()
+      ]);
+      setTopPlayers(top);
+      setAllPlayers(all);
+      setLoading(false);
+    };
+
+    fetchStats();
+  }, []);
+
+  if (loading) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="text-center py-8"
+      >
+        <p className="text-gray-500">Loading player stats...</p>
+      </motion.div>
+    );
+  }
 
   if (allPlayers.length === 0) {
     return (
@@ -76,6 +106,18 @@ const LeaderBoard: React.FC = () => {
                   <TableHead className="text-right">Win %</TableHead>
                   <TableHead className="text-right">W/L</TableHead>
                   <TableHead className="text-right">Games</TableHead>
+                  <TableHead className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <Server className="h-4 w-4" />
+                      <span>Serves</span>
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <MousePointer className="h-4 w-4" />
+                      <span>Receives</span>
+                    </div>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -100,12 +142,14 @@ const LeaderBoard: React.FC = () => {
                     </TableCell>
                     <TableCell className="text-right">{player.gamesWon}/{player.gamesPlayed - player.gamesWon}</TableCell>
                     <TableCell className="text-right">{player.gamesPlayed}</TableCell>
+                    <TableCell className="text-right">{player.totalServes || 0}</TableCell>
+                    <TableCell className="text-right">{player.totalReceives || 0}</TableCell>
                   </motion.tr>
                 ))}
                 
                 {topPlayers.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
                       No qualified players yet (need at least 3 games)
                     </TableCell>
                   </TableRow>
@@ -132,6 +176,8 @@ const LeaderBoard: React.FC = () => {
                   <TableHead className="text-right">Win %</TableHead>
                   <TableHead className="text-right">Wins</TableHead>
                   <TableHead className="text-right">Games</TableHead>
+                  <TableHead className="text-right">Serves</TableHead>
+                  <TableHead className="text-right">Receives</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -147,6 +193,8 @@ const LeaderBoard: React.FC = () => {
                       <TableCell className="text-right">{player.winPercentage}%</TableCell>
                       <TableCell className="text-right">{player.gamesWon}</TableCell>
                       <TableCell className="text-right">{player.gamesPlayed}</TableCell>
+                      <TableCell className="text-right">{player.totalServes || 0}</TableCell>
+                      <TableCell className="text-right">{player.totalReceives || 0}</TableCell>
                     </motion.tr>
                   ))}
               </TableBody>

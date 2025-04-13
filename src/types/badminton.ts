@@ -47,6 +47,8 @@ export interface PlayerStats {
   gamesPlayed: number;
   gamesWon: number;
   winPercentage: number;
+  totalServes?: number;
+  totalReceives?: number;
 }
 
 export interface PlayerRoster {

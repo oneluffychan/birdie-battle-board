@@ -9,10 +9,185 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      match_players: {
+        Row: {
+          created_at: string
+          id: string
+          match_id: string
+          player_id: string
+          receives_count: number
+          serves_count: number
+          team_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          match_id: string
+          player_id: string
+          receives_count?: number
+          serves_count?: number
+          team_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          match_id?: string
+          player_id?: string
+          receives_count?: number
+          serves_count?: number
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_players_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_players_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "player_stats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_players_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_players_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      matches: {
+        Row: {
+          completed: boolean
+          created_at: string
+          date: string
+          guest_team_id: string
+          guest_team_score: number
+          home_team_id: string
+          home_team_score: number
+          id: string
+          is_singles: boolean
+          winner_id: string | null
+          winning_score: number
+        }
+        Insert: {
+          completed?: boolean
+          created_at?: string
+          date?: string
+          guest_team_id: string
+          guest_team_score?: number
+          home_team_id: string
+          home_team_score?: number
+          id?: string
+          is_singles?: boolean
+          winner_id?: string | null
+          winning_score?: number
+        }
+        Update: {
+          completed?: boolean
+          created_at?: string
+          date?: string
+          guest_team_id?: string
+          guest_team_score?: number
+          home_team_id?: string
+          home_team_score?: number
+          id?: string
+          is_singles?: boolean
+          winner_id?: string | null
+          winning_score?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "matches_guest_team_id_fkey"
+            columns: ["guest_team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "matches_home_team_id_fkey"
+            columns: ["home_team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "matches_winner_id_fkey"
+            columns: ["winner_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      players: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      teams: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          is_home_team: boolean
+          name: string
+        }
+        Insert: {
+          color: string
+          created_at?: string
+          id?: string
+          is_home_team: boolean
+          name: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          is_home_team?: boolean
+          name?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
-      [_ in never]: never
+      player_stats: {
+        Row: {
+          games_played: number | null
+          games_won: number | null
+          id: string | null
+          name: string | null
+          total_receives: number | null
+          total_serves: number | null
+          win_percentage: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { PlayerRoster as PlayerRosterType } from '@/types/badminton';
-import { getPlayerRoster, addPlayerToRoster, removePlayerFromRoster } from '@/utils/playerRosterDB';
+import { getPlayerRoster, addPlayerToRoster, removePlayerFromRoster } from '@/utils/supabaseDB';
 import { X, UserPlus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/components/ui/use-toast';
@@ -13,13 +13,23 @@ const PlayerRoster = () => {
   const [players, setPlayers] = useState<PlayerRosterType[]>([]);
   const [newPlayerName, setNewPlayerName] = useState('');
   const [isOpen, setIsOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
-    setPlayers(getPlayerRoster());
-  }, []);
+    const fetchPlayers = async () => {
+      setLoading(true);
+      const data = await getPlayerRoster();
+      setPlayers(data);
+      setLoading(false);
+    };
 
-  const handleAddPlayer = () => {
+    if (isOpen) {
+      fetchPlayers();
+    }
+  }, [isOpen]);
+
+  const handleAddPlayer = async () => {
     if (newPlayerName.trim().length < 2) {
       toast({
         title: "Invalid Name",
@@ -38,9 +48,11 @@ const PlayerRoster = () => {
       return;
     }
 
-    const newPlayer = addPlayerToRoster(newPlayerName);
+    setLoading(true);
+    const newPlayer = await addPlayerToRoster(newPlayerName);
     setPlayers([...players, newPlayer]);
     setNewPlayerName('');
+    setLoading(false);
     
     toast({
       title: "Player Added",
@@ -48,9 +60,11 @@ const PlayerRoster = () => {
     });
   };
 
-  const handleRemovePlayer = (id: string, name: string) => {
-    removePlayerFromRoster(id);
+  const handleRemovePlayer = async (id: string, name: string) => {
+    setLoading(true);
+    await removePlayerFromRoster(id);
     setPlayers(players.filter(p => p.id !== id));
+    setLoading(false);
     
     toast({
       title: "Player Removed",
@@ -79,14 +93,22 @@ const PlayerRoster = () => {
             onKeyDown={(e) => e.key === 'Enter' && handleAddPlayer()}
             className="flex-1"
           />
-          <Button onClick={handleAddPlayer} disabled={newPlayerName.trim().length < 2}>
+          <Button onClick={handleAddPlayer} disabled={newPlayerName.trim().length < 2 || loading}>
             Add
           </Button>
         </div>
         
         <div className="mt-4 max-h-[300px] overflow-y-auto">
           <AnimatePresence>
-            {players.length === 0 ? (
+            {loading ? (
+              <motion.p 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-center text-gray-500 py-4"
+              >
+                Loading players...
+              </motion.p>
+            ) : players.length === 0 ? (
               <motion.p 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -109,6 +131,7 @@ const PlayerRoster = () => {
                       variant="ghost"
                       size="icon"
                       onClick={() => handleRemovePlayer(player.id, player.name)}
+                      disabled={loading}
                     >
                       <X className="h-4 w-4 text-gray-500" />
                     </Button>
