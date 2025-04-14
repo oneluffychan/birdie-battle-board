@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { nanoid } from 'nanoid';
 import { Match, Team, Player } from '@/types/badminton';
@@ -144,7 +143,6 @@ export const BadmintonProvider = ({ children }: { children: React.ReactNode }) =
       const receivingTeam = isHomeTeamPoint ? prev.guestTeam : prev.homeTeam;
       
       if (isSingles) {
-        // Update player stats for serves and receives
         updatePlayerStats(
           prev,
           isHomeTeamPoint ? prev.homeTeam.id : prev.guestTeam.id,
@@ -183,7 +181,6 @@ export const BadmintonProvider = ({ children }: { children: React.ReactNode }) =
       const nextServingPlayerIdx = (prev.homeTeam.score + prev.guestTeam.score) % 4 < 2 ? 0 : 1;
       const nextReceivingPlayerIdx = ((prev.homeTeam.score + prev.guestTeam.score) % 4 < 2) ? 0 : 1;
       
-      // Update player stats for serves and receives
       updatePlayerStats(
         prev,
         isHomeTeamPoint ? prev.homeTeam.id : prev.guestTeam.id,
@@ -272,20 +269,8 @@ export const BadmintonProvider = ({ children }: { children: React.ReactNode }) =
   const checkWinner = (): Team | undefined => {
     const { homeTeam, guestTeam, winningScore } = match;
     
-    // Standard win condition (score is at least winningScore and ahead by 2+)
-    if (homeTeam.score >= winningScore && homeTeam.score >= guestTeam.score + 2) {
-      return homeTeam;
-    }
-    
-    if (guestTeam.score >= winningScore && guestTeam.score >= homeTeam.score + 2) {
-      return guestTeam;
-    }
-    
-    // Deuce situations when both reach 20 points (for standard 21-point game)
     if (winningScore === 21) {
-      // If scores are tied at 20-20 or greater, player needs to win by 2
       if (homeTeam.score >= 20 && guestTeam.score >= 20) {
-        // Special case: at 29-29, first to 30 wins
         if (homeTeam.score === 30) {
           return homeTeam;
         }
@@ -293,31 +278,25 @@ export const BadmintonProvider = ({ children }: { children: React.ReactNode }) =
           return guestTeam;
         }
         
-        // In deuce, win by 2
-        if (homeTeam.score >= guestTeam.score + 2) {
+        if (homeTeam.score >= 21 && homeTeam.score >= guestTeam.score + 2) {
           return homeTeam;
         }
-        if (guestTeam.score >= homeTeam.score + 2) {
+        if (guestTeam.score >= 21 && guestTeam.score >= homeTeam.score + 2) {
           return guestTeam;
         }
       } else {
-        // Regular win at exactly 21 points when not in deuce
-        if (homeTeam.score === 21) {
+        if (homeTeam.score >= 21) {
           return homeTeam;
         }
-        if (guestTeam.score === 21) {
+        if (guestTeam.score >= 21) {
           return guestTeam;
         }
       }
-    }
-    
-    // For custom winning scores
-    if (winningScore !== 21) {
-      // Regular win at exactly the winning score when not in deuce
-      if (homeTeam.score === winningScore) {
+    } else {
+      if (homeTeam.score >= winningScore) {
         return homeTeam;
       }
-      if (guestTeam.score === winningScore) {
+      if (guestTeam.score >= winningScore) {
         return guestTeam;
       }
     }
@@ -340,25 +319,24 @@ export const BadmintonProvider = ({ children }: { children: React.ReactNode }) =
         }
       };
       
-      // Update the serve/receive indicators
       updateServeReceive(isHomeTeam);
       
-      // Check for winner immediately after score update
       const winner = checkWinner();
       if (winner) {
+        const finalMatch = {
+          ...updatedMatch,
+          winner,
+          completed: true
+        };
+        
+        saveGameHistory(finalMatch);
+        
         toast({
           title: "Match Complete!",
           description: `${winner.name} has won the match!`,
         });
         
-        saveMatchResult({...updatedMatch}, winner);
-        
-        // Update the match state to show it's completed with the winner
-        return {
-          ...updatedMatch,
-          winner,
-          completed: true
-        };
+        return finalMatch;
       }
       
       return updatedMatch;

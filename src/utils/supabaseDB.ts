@@ -105,10 +105,38 @@ export const removePlayerFromRoster = async (id: string): Promise<void> => {
 // Match History
 export const saveGameHistory = async (match: Match): Promise<void> => {
   try {
+    console.log("Saving game history:", match);
+    
+    // Get the winner info
+    const winner = match.winner || 
+      (match.homeTeam.score > match.guestTeam.score ? match.homeTeam : match.guestTeam);
+    
+    // Add home team players to roster if they don't exist
+    const homePlayers = [];
+    for (const player of match.homeTeam.players) {
+      try {
+        const addedPlayer = await addPlayerToRoster(player.name);
+        homePlayers.push(addedPlayer);
+      } catch (error) {
+        console.error("Error adding home player to roster:", error);
+      }
+    }
+    
+    // Add guest team players to roster if they don't exist
+    const guestPlayers = [];
+    for (const player of match.guestTeam.players) {
+      try {
+        const addedPlayer = await addPlayerToRoster(player.name);
+        guestPlayers.push(addedPlayer);
+      } catch (error) {
+        console.error("Error adding guest player to roster:", error);
+      }
+    }
+    
     // Check if home and guest teams already exist, create them if they don't
     const homeTeamResponse = await supabase
       .from('teams')
-      .insert({
+      .upsert({
         id: match.homeTeam.id,
         name: match.homeTeam.name,
         is_home_team: true,
@@ -119,7 +147,7 @@ export const saveGameHistory = async (match: Match): Promise<void> => {
       
     const guestTeamResponse = await supabase
       .from('teams')
-      .insert({
+      .upsert({
         id: match.guestTeam.id,
         name: match.guestTeam.name,
         is_home_team: false,
@@ -130,12 +158,12 @@ export const saveGameHistory = async (match: Match): Promise<void> => {
     
     const homeTeamId = homeTeamResponse.data?.id || match.homeTeam.id;
     const guestTeamId = guestTeamResponse.data?.id || match.guestTeam.id;
-    const winnerId = match.winner?.id || null;
+    const winnerId = winner?.id || null;
     
     // Create match record
     const { data: matchData, error: matchError } = await supabase
       .from('matches')
-      .insert({
+      .upsert({
         id: match.id,
         date: match.date,
         winning_score: match.winningScore,
@@ -156,37 +184,45 @@ export const saveGameHistory = async (match: Match): Promise<void> => {
     }
     
     // Create match_players records for all players
-    const matchPlayers: SupabaseMatchPlayer[] = [];
+    const matchPlayers = [];
     
     // Add home team players
-    match.homeTeam.players.forEach(player => {
+    for (let i = 0; i < match.homeTeam.players.length; i++) {
+      const player = match.homeTeam.players[i];
+      const playerId = homePlayers[i]?.id || player.id;
+      
       matchPlayers.push({
         match_id: match.id,
         team_id: homeTeamId,
-        player_id: player.id,
+        player_id: playerId,
         serves_count: player.isServing ? 1 : 0,
         receives_count: player.isReceiving ? 1 : 0
       });
-    });
+    }
     
     // Add guest team players
-    match.guestTeam.players.forEach(player => {
+    for (let i = 0; i < match.guestTeam.players.length; i++) {
+      const player = match.guestTeam.players[i];
+      const playerId = guestPlayers[i]?.id || player.id;
+      
       matchPlayers.push({
         match_id: match.id,
         team_id: guestTeamId,
-        player_id: player.id,
+        player_id: playerId,
         serves_count: player.isServing ? 1 : 0,
         receives_count: player.isReceiving ? 1 : 0
       });
-    });
+    }
     
     // Save match players
     const { error: playersError } = await supabase
       .from('match_players')
-      .insert(matchPlayers);
+      .upsert(matchPlayers);
       
     if (playersError) {
       console.error("Error saving match players:", playersError);
+    } else {
+      console.log("Successfully saved match history");
     }
   } catch (error) {
     console.error("Error saving game history:", error);
@@ -195,6 +231,8 @@ export const saveGameHistory = async (match: Match): Promise<void> => {
 
 export const getGameHistory = async (): Promise<GameHistory[]> => {
   try {
+    console.log("Fetching game history");
+    
     // Fetch matches with their teams
     const { data: matches, error: matchesError } = await supabase
       .from('matches')
@@ -208,6 +246,7 @@ export const getGameHistory = async (): Promise<GameHistory[]> => {
         home_team_id,
         guest_team_id
       `)
+      .eq('completed', true)
       .order('date', { ascending: false });
     
     if (matchesError) {
@@ -215,95 +254,116 @@ export const getGameHistory = async (): Promise<GameHistory[]> => {
       return [];
     }
 
-    // Fetch home teams
-    const { data: homeTeams, error: homeTeamsError } = await supabase
-      .from('teams')
-      .select('id, name')
-      .in('id', matches.map(match => match.home_team_id));
-
-    if (homeTeamsError) {
-      console.error("Error getting home teams:", homeTeamsError);
-      return [];
-    }
-
-    // Fetch guest teams
-    const { data: guestTeams, error: guestTeamsError } = await supabase
-      .from('teams')
-      .select('id, name')
-      .in('id', matches.map(match => match.guest_team_id));
-
-    if (guestTeamsError) {
-      console.error("Error getting guest teams:", guestTeamsError);
+    if (!matches || matches.length === 0) {
+      console.log("No completed matches found");
       return [];
     }
     
+    console.log("Found matches:", matches.length);
+
+    // Get all team IDs
+    const teamIds = [...new Set([
+      ...matches.map(m => m.home_team_id),
+      ...matches.map(m => m.guest_team_id)
+    ])];
+
+    // Fetch all teams at once
+    const { data: teamsData, error: teamsError } = await supabase
+      .from('teams')
+      .select('id, name')
+      .in('id', teamIds);
+
+    if (teamsError) {
+      console.error("Error getting teams:", teamsError);
+      return [];
+    }
+
     const gameHistory: GameHistory[] = [];
     
-    for (const match of matches || []) {
-      // Get home team players
-      const { data: homePlayerMatches, error: homePlayersError } = await supabase
-        .from('match_players')
-        .select('player_id')
-        .eq('match_id', match.id)
-        .eq('team_id', match.home_team_id);
-      
-      if (homePlayersError) {
-        console.error("Error getting home players:", homePlayersError);
-        continue;
-      }
+    for (const match of matches) {
+      try {
+        // Get home team players
+        const { data: homePlayerMatches, error: homePlayersError } = await supabase
+          .from('match_players')
+          .select('player_id')
+          .eq('match_id', match.id)
+          .eq('team_id', match.home_team_id);
+        
+        if (homePlayersError) {
+          console.error("Error getting home players:", homePlayersError);
+          continue;
+        }
 
-      // Get player names for home team
-      const { data: homePlayers, error: homePlayerNamesError } = await supabase
-        .from('players')
-        .select('name')
-        .in('id', homePlayerMatches.map(pm => pm.player_id));
+        if (!homePlayerMatches || homePlayerMatches.length === 0) {
+          console.log(`No home players found for match ${match.id}`);
+          continue;
+        }
 
-      if (homePlayerNamesError) {
-        console.error("Error getting home player names:", homePlayerNamesError);
-        continue;
-      }
-      
-      // Get guest team players
-      const { data: guestPlayerMatches, error: guestPlayersError } = await supabase
-        .from('match_players')
-        .select('player_id')
-        .eq('match_id', match.id)
-        .eq('team_id', match.guest_team_id);
-      
-      if (guestPlayersError) {
-        console.error("Error getting guest players:", guestPlayersError);
-        continue;
-      }
+        // Get player names for home team
+        const { data: homePlayers, error: homePlayerNamesError } = await supabase
+          .from('players')
+          .select('name')
+          .in('id', homePlayerMatches.map(pm => pm.player_id));
 
-      // Get player names for guest team
-      const { data: guestPlayers, error: guestPlayerNamesError } = await supabase
-        .from('players')
-        .select('name')
-        .in('id', guestPlayerMatches.map(pm => pm.player_id));
+        if (homePlayerNamesError) {
+          console.error("Error getting home player names:", homePlayerNamesError);
+          continue;
+        }
+        
+        // Get guest team players
+        const { data: guestPlayerMatches, error: guestPlayersError } = await supabase
+          .from('match_players')
+          .select('player_id')
+          .eq('match_id', match.id)
+          .eq('team_id', match.guest_team_id);
+        
+        if (guestPlayersError) {
+          console.error("Error getting guest players:", guestPlayersError);
+          continue;
+        }
 
-      if (guestPlayerNamesError) {
-        console.error("Error getting guest player names:", guestPlayerNamesError);
-        continue;
+        if (!guestPlayerMatches || guestPlayerMatches.length === 0) {
+          console.log(`No guest players found for match ${match.id}`);
+          continue;
+        }
+
+        // Get player names for guest team
+        const { data: guestPlayers, error: guestPlayerNamesError } = await supabase
+          .from('players')
+          .select('name')
+          .in('id', guestPlayerMatches.map(pm => pm.player_id));
+
+        if (guestPlayerNamesError) {
+          console.error("Error getting guest player names:", guestPlayerNamesError);
+          continue;
+        }
+        
+        const homeTeam = teamsData.find(team => team.id === match.home_team_id);
+        const guestTeam = teamsData.find(team => team.id === match.guest_team_id);
+        
+        if (!homeTeam || !guestTeam) {
+          console.log(`Could not find teams for match ${match.id}`);
+          continue;
+        }
+        
+        gameHistory.push({
+          id: match.id,
+          date: match.date,
+          homeTeam: {
+            name: homeTeam?.name || 'Home Team',
+            players: homePlayers?.map(p => p.name) || [],
+            score: match.home_team_score
+          },
+          guestTeam: {
+            name: guestTeam?.name || 'Guest Team',
+            players: guestPlayers?.map(p => p.name) || [],
+            score: match.guest_team_score
+          },
+          winner: match.winner_id === match.home_team_id ? 'home' : 'guest'
+        });
+      } catch (error) {
+        console.error(`Error processing match ${match.id}:`, error);
       }
-      
-      const homeTeam = homeTeams.find(team => team.id === match.home_team_id);
-      const guestTeam = guestTeams.find(team => team.id === match.guest_team_id);
-      
-      gameHistory.push({
-        id: match.id,
-        date: match.date,
-        homeTeam: {
-          name: homeTeam?.name || 'Home Team',
-          players: homePlayers.map(p => p.name),
-          score: match.home_team_score
-        },
-        guestTeam: {
-          name: guestTeam?.name || 'Guest Team',
-          players: guestPlayers.map(p => p.name),
-          score: match.guest_team_score
-        },
-        winner: match.winner_id === match.home_team_id ? 'home' : 'guest'
-      });
     }
     
     return gameHistory;
@@ -363,54 +423,105 @@ export const updatePlayerStats = async (
 
 export const getPlayerStats = async (): Promise<PlayerStats[]> => {
   try {
-    const { data, error } = await supabase
-      .from('player_stats')
-      .select('id, name, games_played, games_won, win_percentage, total_serves, total_receives');
+    console.log("Fetching player stats");
+    
+    // First get all players
+    const { data: players, error: playersError } = await supabase
+      .from('players')
+      .select('id, name');
       
-    if (error) {
-      console.error("Error getting player stats:", error);
+    if (playersError) {
+      console.error("Error getting players:", playersError);
       return [];
     }
     
-    return (data || []).map(player => ({
-      id: player.id,
-      name: player.name,
-      gamesPlayed: player.games_played || 0,
-      gamesWon: player.games_won || 0,
-      winPercentage: player.win_percentage || 0,
-      totalServes: player.total_serves || 0,
-      totalReceives: player.total_receives || 0
-    }));
+    if (!players || players.length === 0) {
+      return [];
+    }
+    
+    const playerStats: PlayerStats[] = [];
+    
+    for (const player of players) {
+      // Get matches where this player participated
+      const { data: matchPlayers, error: matchPlayersError } = await supabase
+        .from('match_players')
+        .select('match_id, team_id, serves_count, receives_count')
+        .eq('player_id', player.id);
+        
+      if (matchPlayersError) {
+        console.error(`Error getting matches for player ${player.id}:`, matchPlayersError);
+        continue;
+      }
+      
+      if (!matchPlayers || matchPlayers.length === 0) {
+        continue;
+      }
+      
+      // Get match details for all matches this player was in
+      const matchIds = [...new Set(matchPlayers.map(mp => mp.match_id))];
+      
+      const { data: matches, error: matchesError } = await supabase
+        .from('matches')
+        .select('id, winner_id, home_team_id, guest_team_id')
+        .in('id', matchIds)
+        .eq('completed', true);
+        
+      if (matchesError) {
+        console.error(`Error getting match details for player ${player.id}:`, matchesError);
+        continue;
+      }
+      
+      // Calculate stats
+      let gamesPlayed = matches?.length || 0;
+      let gamesWon = 0;
+      let totalServes = 0;
+      let totalReceives = 0;
+      
+      // Calculate total serves and receives
+      for (const mp of matchPlayers) {
+        totalServes += mp.serves_count || 0;
+        totalReceives += mp.receives_count || 0;
+      }
+      
+      // Calculate games won
+      for (const match of matches || []) {
+        const playerTeamIds = matchPlayers
+          .filter(mp => mp.match_id === match.id)
+          .map(mp => mp.team_id);
+          
+        if (playerTeamIds.includes(match.winner_id)) {
+          gamesWon++;
+        }
+      }
+      
+      const winPercentage = gamesPlayed > 0 ? Math.round((gamesWon / gamesPlayed) * 100) : 0;
+      
+      playerStats.push({
+        id: player.id,
+        name: player.name,
+        gamesPlayed,
+        gamesWon,
+        winPercentage,
+        totalServes,
+        totalReceives
+      });
+    }
+    
+    return playerStats;
   } catch (error) {
-    console.error("Error getting player stats:", error);
+    console.error("Error calculating player stats:", error);
     return [];
   }
 };
 
-// Get top players sorted by win percentage
 export const getTopPlayers = async (limit = 5): Promise<PlayerStats[]> => {
   try {
-    const { data, error } = await supabase
-      .from('player_stats')
-      .select('id, name, games_played, games_won, win_percentage, total_serves, total_receives')
-      .gte('games_played', 3)
-      .order('win_percentage', { ascending: false })
-      .limit(limit);
-      
-    if (error) {
-      console.error("Error getting top players:", error);
-      return [];
-    }
+    const allStats = await getPlayerStats();
     
-    return (data || []).map(player => ({
-      id: player.id,
-      name: player.name,
-      gamesPlayed: player.games_played || 0,
-      gamesWon: player.games_won || 0,
-      winPercentage: player.win_percentage || 0,
-      totalServes: player.total_serves || 0,
-      totalReceives: player.total_receives || 0
-    }));
+    return allStats
+      .filter(player => player.gamesPlayed >= 3)
+      .sort((a, b) => b.winPercentage - a.winPercentage)
+      .slice(0, limit);
   } catch (error) {
     console.error("Error getting top players:", error);
     return [];
