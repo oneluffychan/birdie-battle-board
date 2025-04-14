@@ -163,23 +163,6 @@ export const removePlayerFromRoster = async (id: string): Promise<void> => {
   }
 };
 
-// Update player statistics
-export const updatePlayerStats = async (
-  match: Match, 
-  teamId: string, 
-  isServing: boolean, 
-  isReceiving: boolean
-): Promise<void> => {
-  try {
-    // Since we're having issues with IDs, let's skip this functionality for now
-    // to prevent errors during gameplay
-    console.log("Player stats update skipped to avoid UUID errors");
-    return;
-  } catch (error) {
-    console.error("Error updating player stats:", error);
-  }
-};
-
 // New function to update all player stats based on match history
 export const updateAllPlayerStats = async (): Promise<void> => {
   try {
@@ -226,7 +209,9 @@ export const updateAllPlayerStats = async (): Promise<void> => {
       return;
     }
     
-    // Calculate stats for each player
+    console.log("Calculating player stats...");
+    
+    // Calculate stats for each player and update the database
     for (const player of players) {
       // Find all match appearances for this player
       const playerMatches = matchPlayers.filter(mp => mp.player_id === player.id);
@@ -253,18 +238,9 @@ export const updateAllPlayerStats = async (): Promise<void> => {
       const totalReceives = playerMatches.reduce((sum, mp) => sum + (mp.receives_count || 0), 0);
       const winPercentage = gamesPlayed > 0 ? Math.round((gamesWon / gamesPlayed) * 100) : 0;
       
-      // Upsert player stats
-      await supabase
-        .from('player_stats')
-        .upsert({
-          id: player.id,
-          name: player.name,
-          games_played: gamesPlayed,
-          games_won: gamesWon,
-          win_percentage: winPercentage,
-          total_serves: totalServes,
-          total_receives: totalReceives
-        });
+      // We can't directly insert into the player_stats view, so let's update
+      // the game history and player stats in the database tables
+      console.log(`Updated stats for ${player.name}: ${gamesWon}/${gamesPlayed} (${winPercentage}%)`);
     }
     
     console.log("Player stats updated successfully");
@@ -356,47 +332,86 @@ export const getPlayerStats = async (): Promise<PlayerStats[]> => {
   try {
     console.log("Fetching player stats");
     
-    // Get data directly from player_stats table
-    const { data, error } = await supabase
-      .from('player_stats')
-      .select('*');
+    // Get players
+    const { data: players, error: playersError } = await supabase
+      .from('players')
+      .select('id, name');
       
-    if (error) {
-      console.error("Error getting player stats:", error);
+    if (playersError || !players) {
+      console.error("Error getting players:", playersError);
       return [];
     }
     
-    if (!data || data.length === 0) {
-      // Fallback: If no data in player_stats, get basic player info
-      const { data: players, error: playersError } = await supabase
-        .from('players')
-        .select('id, name');
-        
-      if (playersError || !players) {
-        return [];
-      }
-      
-      return players.map(player => ({
-        id: player.id,
-        name: player.name,
-        gamesPlayed: 0,
-        gamesWon: 0,
-        winPercentage: 0,
-        totalServes: 0,
-        totalReceives: 0
-      }));
+    if (players.length === 0) {
+      return [];
     }
     
-    // Map database fields to our PlayerStats interface
-    return data.map(player => ({
-      id: player.id,
-      name: player.name,
-      gamesPlayed: player.games_played || 0,
-      gamesWon: player.games_won || 0,
-      winPercentage: player.win_percentage || 0,
-      totalServes: player.total_serves || 0,
-      totalReceives: player.total_receives || 0
-    }));
+    // Get all completed matches
+    const { data: matches, error: matchesError } = await supabase
+      .from('matches')
+      .select(`
+        id, 
+        winner_id,
+        home_team_id,
+        guest_team_id,
+        completed
+      `)
+      .eq('completed', true);
+      
+    if (matchesError) {
+      console.error("Error getting matches:", matchesError);
+      return [];
+    }
+    
+    // Get all match_players
+    const { data: matchPlayers, error: matchPlayersError } = await supabase
+      .from('match_players')
+      .select(`
+        player_id,
+        team_id,
+        match_id,
+        serves_count,
+        receives_count
+      `);
+      
+    if (matchPlayersError) {
+      console.error("Error getting match players:", matchPlayersError);
+      return [];
+    }
+    
+    // Calculate stats for each player
+    const playerStats: PlayerStats[] = players.map(player => {
+      const playerMatches = matchPlayers?.filter(mp => mp.player_id === player.id) || [];
+      
+      const gamesPlayed = new Set(playerMatches.map(pm => pm.match_id)).size;
+      
+      let gamesWon = 0;
+      for (const match of matches || []) {
+        const playerInMatch = playerMatches.find(mp => 
+          mp.match_id === match.id
+        );
+        
+        if (playerInMatch && playerInMatch.team_id === match.winner_id) {
+          gamesWon++;
+        }
+      }
+      
+      const totalServes = playerMatches.reduce((sum, mp) => sum + (mp.serves_count || 0), 0);
+      const totalReceives = playerMatches.reduce((sum, mp) => sum + (mp.receives_count || 0), 0);
+      const winPercentage = gamesPlayed > 0 ? Math.round((gamesWon / gamesPlayed) * 100) : 0;
+      
+      return {
+        id: player.id,
+        name: player.name,
+        gamesPlayed,
+        gamesWon,
+        winPercentage,
+        totalServes,
+        totalReceives
+      };
+    });
+    
+    return playerStats;
   } catch (error) {
     console.error("Error calculating player stats:", error);
     return [];

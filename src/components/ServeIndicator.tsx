@@ -2,6 +2,7 @@
 import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useBadminton } from '@/context/BadmintonContext';
+import { Server, MousePointer } from 'lucide-react';
 
 const ServeIndicator: React.FC = () => {
   const { match } = useBadminton();
@@ -37,7 +38,8 @@ const ServeIndicator: React.FC = () => {
           animate={{ x: 0, opacity: 1 }}
           transition={{ delay: 0.3 }}
         >
-          <span className="text-gray-600">Serving:</span>
+          <Server className="h-5 w-5 text-green-600" />
+          <span className="text-gray-600 font-medium">Serving:</span>
           <motion.span 
             className={`font-medium px-3 py-1 rounded-full ${
               isHomeTeamServing 
@@ -71,7 +73,8 @@ const ServeIndicator: React.FC = () => {
           animate={{ x: 0, opacity: 1 }}
           transition={{ delay: 0.3 }}
         >
-          <span className="text-gray-600">Receiving:</span>
+          <MousePointer className="h-5 w-5 text-amber-600" />
+          <span className="text-gray-600 font-medium">Receiving:</span>
           <motion.span 
             className={`font-medium px-3 py-1 rounded-full ${
               !isHomeTeamServing 
