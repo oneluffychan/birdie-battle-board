@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useBadminton } from '@/context/BadmintonContext';
 
@@ -16,6 +16,12 @@ const ServeIndicator: React.FC = () => {
   );
 
   const isHomeTeamServing = match.homeTeam.players.some(player => player.isServing);
+
+  // Log serving and receiving players for debugging
+  useEffect(() => {
+    console.log('Current serving player:', servingPlayer?.name);
+    console.log('Current receiving player:', receivingPlayer?.name);
+  }, [servingPlayer, receivingPlayer]);
 
   return (
     <motion.div 
@@ -38,7 +44,7 @@ const ServeIndicator: React.FC = () => {
                 ? 'bg-blue-100 text-blue-800' 
                 : 'bg-purple-100 text-purple-800'
             }`}
-            key={servingPlayer?.id}
+            key={servingPlayer?.id || 'serving'}
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ type: "spring", stiffness: 500, damping: 30 }}
@@ -72,7 +78,7 @@ const ServeIndicator: React.FC = () => {
                 ? 'bg-blue-100 text-blue-800' 
                 : 'bg-purple-100 text-purple-800'
             }`}
-            key={receivingPlayer?.id}
+            key={receivingPlayer?.id || 'receiving'}
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ type: "spring", stiffness: 500, damping: 30 }}

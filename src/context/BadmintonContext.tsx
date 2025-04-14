@@ -137,14 +137,14 @@ export const BadmintonProvider = ({ children }: { children: React.ReactNode }) =
     });
   };
 
-  const updateServeReceive = async (isHomeTeamPoint: boolean) => {
+  const updateServeReceive = (isHomeTeamPoint: boolean) => {
     setMatch(prev => {
       if (isSingles) {
         return {
           ...prev,
           homeTeam: {
             ...prev.homeTeam,
-            players: prev.homeTeam.players.map((p, idx) => ({
+            players: prev.homeTeam.players.map(p => ({
               ...p,
               isServing: isHomeTeamPoint,
               isReceiving: !isHomeTeamPoint,
@@ -152,7 +152,7 @@ export const BadmintonProvider = ({ children }: { children: React.ReactNode }) =
           },
           guestTeam: {
             ...prev.guestTeam,
-            players: prev.guestTeam.players.map((p, idx) => ({
+            players: prev.guestTeam.players.map(p => ({
               ...p,
               isServing: !isHomeTeamPoint,
               isReceiving: isHomeTeamPoint,
@@ -161,31 +161,34 @@ export const BadmintonProvider = ({ children }: { children: React.ReactNode }) =
         };
       }
       
-      const nextServingPlayerIdx = (prev.homeTeam.score + prev.guestTeam.score) % 4 < 2 ? 0 : 1;
-      const nextReceivingPlayerIdx = ((prev.homeTeam.score + prev.guestTeam.score) % 4 < 2) ? 0 : 1;
+      const totalScore = prev.homeTeam.score + prev.guestTeam.score;
       
-      const updatedHomeTeam = {
-        ...prev.homeTeam,
-        players: prev.homeTeam.players.map((p, idx) => ({
-          ...p,
-          isServing: isHomeTeamPoint && idx === nextServingPlayerIdx,
-          isReceiving: !isHomeTeamPoint && idx === nextReceivingPlayerIdx
-        }))
-      };
+      const isHomeTeamServing = isHomeTeamPoint;
       
-      const updatedGuestTeam = {
-        ...prev.guestTeam,
-        players: prev.guestTeam.players.map((p, idx) => ({
-          ...p,
-          isServing: !isHomeTeamPoint && idx === nextServingPlayerIdx,
-          isReceiving: isHomeTeamPoint && idx === nextReceivingPlayerIdx
-        }))
-      };
+      const position = Math.floor(totalScore / 2) % 2;
+      
+      const updatedHomeTeamPlayers = prev.homeTeam.players.map((p, idx) => ({
+        ...p,
+        isServing: isHomeTeamServing && idx === position,
+        isReceiving: !isHomeTeamServing && idx === position
+      }));
+      
+      const updatedGuestTeamPlayers = prev.guestTeam.players.map((p, idx) => ({
+        ...p,
+        isServing: !isHomeTeamServing && idx === position,
+        isReceiving: isHomeTeamServing && idx === position
+      }));
       
       return {
         ...prev,
-        homeTeam: updatedHomeTeam,
-        guestTeam: updatedGuestTeam
+        homeTeam: {
+          ...prev.homeTeam,
+          players: updatedHomeTeamPlayers
+        },
+        guestTeam: {
+          ...prev.guestTeam,
+          players: updatedGuestTeamPlayers
+        }
       };
     });
   };
@@ -314,11 +317,7 @@ export const BadmintonProvider = ({ children }: { children: React.ReactNode }) =
         return finalMatch;
       }
       
-      try {
-        updateServeReceive(isHomeTeam);
-      } catch (error) {
-        console.error("Error updating serve/receive:", error);
-      }
+      updateServeReceive(isHomeTeam);
       
       return updatedMatch;
     });
@@ -351,11 +350,7 @@ export const BadmintonProvider = ({ children }: { children: React.ReactNode }) =
         winner: undefined
       };
       
-      try {
-        updateServeReceive(!isHomeTeam);
-      } catch (error) {
-        console.error("Error updating serve/receive:", error);
-      }
+      updateServeReceive(!isHomeTeam);
       
       return updatedMatch;
     });
