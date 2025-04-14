@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { nanoid } from 'nanoid';
 import { Match, Team, Player } from '@/types/badminton';
@@ -271,26 +272,52 @@ export const BadmintonProvider = ({ children }: { children: React.ReactNode }) =
   const checkWinner = (): Team | undefined => {
     const { homeTeam, guestTeam, winningScore } = match;
     
-    if (homeTeam.score >= winningScore && homeTeam.score >= guestTeam.score + 2 && guestTeam.score < winningScore - 1) {
+    // Standard win condition (score is at least winningScore and ahead by 2+)
+    if (homeTeam.score >= winningScore && homeTeam.score >= guestTeam.score + 2) {
       return homeTeam;
     }
     
-    if (guestTeam.score >= winningScore && guestTeam.score >= homeTeam.score + 2 && homeTeam.score < winningScore - 1) {
+    if (guestTeam.score >= winningScore && guestTeam.score >= homeTeam.score + 2) {
       return guestTeam;
     }
     
-    if (homeTeam.score >= winningScore - 1 && guestTeam.score >= winningScore - 1) {
-      if (homeTeam.score >= guestTeam.score + 2) {
+    // Deuce situations when both reach 20 points (for standard 21-point game)
+    if (winningScore === 21) {
+      // If scores are tied at 20-20 or greater, player needs to win by 2
+      if (homeTeam.score >= 20 && guestTeam.score >= 20) {
+        // Special case: at 29-29, first to 30 wins
+        if (homeTeam.score === 30) {
+          return homeTeam;
+        }
+        if (guestTeam.score === 30) {
+          return guestTeam;
+        }
+        
+        // In deuce, win by 2
+        if (homeTeam.score >= guestTeam.score + 2) {
+          return homeTeam;
+        }
+        if (guestTeam.score >= homeTeam.score + 2) {
+          return guestTeam;
+        }
+      } else {
+        // Regular win at exactly 21 points when not in deuce
+        if (homeTeam.score === 21) {
+          return homeTeam;
+        }
+        if (guestTeam.score === 21) {
+          return guestTeam;
+        }
+      }
+    }
+    
+    // For custom winning scores
+    if (winningScore !== 21) {
+      // Regular win at exactly the winning score when not in deuce
+      if (homeTeam.score === winningScore) {
         return homeTeam;
       }
-      if (guestTeam.score >= homeTeam.score + 2) {
-        return guestTeam;
-      }
-      
-      if (winningScore === 21 && homeTeam.score === 30) {
-        return homeTeam;
-      }
-      if (winningScore === 21 && guestTeam.score === 30) {
+      if (guestTeam.score === winningScore) {
         return guestTeam;
       }
     }
@@ -313,8 +340,10 @@ export const BadmintonProvider = ({ children }: { children: React.ReactNode }) =
         }
       };
       
+      // Update the serve/receive indicators
       updateServeReceive(isHomeTeam);
       
+      // Check for winner immediately after score update
       const winner = checkWinner();
       if (winner) {
         toast({
@@ -322,8 +351,9 @@ export const BadmintonProvider = ({ children }: { children: React.ReactNode }) =
           description: `${winner.name} has won the match!`,
         });
         
-        saveMatchResult(updatedMatch, winner);
+        saveMatchResult({...updatedMatch}, winner);
         
+        // Update the match state to show it's completed with the winner
         return {
           ...updatedMatch,
           winner,
