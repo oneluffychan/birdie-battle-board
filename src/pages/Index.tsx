@@ -109,16 +109,12 @@ const ScoreKeeperContent = () => {
   );
 };
 
-const ScoreKeeper = () => {
+const Index = () => {
   return (
     <BadmintonProvider>
       <ScoreKeeperContent />
     </BadmintonProvider>
   );
-};
-
-const Index = () => {
-  return <ScoreKeeper />;
 };
 
 export default Index;
