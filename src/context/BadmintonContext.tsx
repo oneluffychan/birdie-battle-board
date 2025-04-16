@@ -1,8 +1,7 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Match, Team, Player } from '@/types/badminton';
-import { saveGameHistory, updatePlayerStats } from '@/utils/supabaseDB';
+import { saveGameHistory, updateAllPlayerStats } from '@/utils/supabaseDB';
 import { useToast } from "@/components/ui/use-toast";
 
 interface BadmintonContextType {
@@ -139,9 +138,9 @@ export const BadmintonProvider = ({ children }: { children: React.ReactNode }) =
   };
 
   const updateServeReceive = (isHomeTeamPoint: boolean) => {
+    console.log("Updating serve and receive", isHomeTeamPoint);
     setMatch(prev => {
       if (isSingles) {
-        // In singles, serving alternates between the two players
         return {
           ...prev,
           homeTeam: {
@@ -163,28 +162,51 @@ export const BadmintonProvider = ({ children }: { children: React.ReactNode }) =
         };
       }
       
-      // In doubles, the serving pattern follows badminton rules
       const totalScore = prev.homeTeam.score + prev.guestTeam.score;
+      const isEvenScore = totalScore % 2 === 0;
       
-      // Determine which side is serving
       const isHomeTeamServing = isHomeTeamPoint;
       
-      // Determine which player on each team should be serving/receiving
-      const servingPlayerIndex = Math.floor(totalScore / 2) % 2;
+      const updatedHomeTeamPlayers = prev.homeTeam.players.map((p, idx) => {
+        let isPlayerServing = false;
+        let isPlayerReceiving = false;
+        
+        if (isHomeTeamServing) {
+          isPlayerServing = idx === (isEvenScore ? 0 : 1);
+          isPlayerReceiving = false;
+        } else {
+          isPlayerServing = false;
+          isPlayerReceiving = idx === (isEvenScore ? 0 : 1);
+        }
+        
+        return {
+          ...p,
+          isServing: isPlayerServing,
+          isReceiving: isPlayerReceiving
+        };
+      });
       
-      // Update home team players
-      const updatedHomeTeamPlayers = prev.homeTeam.players.map((p, idx) => ({
-        ...p,
-        isServing: isHomeTeamServing && idx === servingPlayerIndex,
-        isReceiving: !isHomeTeamServing && idx === servingPlayerIndex
-      }));
+      const updatedGuestTeamPlayers = prev.guestTeam.players.map((p, idx) => {
+        let isPlayerServing = false;
+        let isPlayerReceiving = false;
+        
+        if (!isHomeTeamServing) {
+          isPlayerServing = idx === (isEvenScore ? 0 : 1);
+          isPlayerReceiving = false;
+        } else {
+          isPlayerServing = false;
+          isPlayerReceiving = idx === (isEvenScore ? 0 : 1);
+        }
+        
+        return {
+          ...p,
+          isServing: isPlayerServing,
+          isReceiving: isPlayerReceiving
+        };
+      });
       
-      // Update guest team players
-      const updatedGuestTeamPlayers = prev.guestTeam.players.map((p, idx) => ({
-        ...p,
-        isServing: !isHomeTeamServing && idx === servingPlayerIndex,
-        isReceiving: isHomeTeamServing && idx === servingPlayerIndex
-      }));
+      console.log(`Total score: ${totalScore}, Even score: ${isEvenScore}`);
+      console.log(`Home team serving: ${isHomeTeamServing}`);
       
       return {
         ...prev,
@@ -282,7 +304,6 @@ export const BadmintonProvider = ({ children }: { children: React.ReactNode }) =
       const updatedHomeTeamScore = isHomeTeam ? prev.homeTeam.score + 1 : prev.homeTeam.score;
       const updatedGuestTeamScore = !isHomeTeam ? prev.guestTeam.score + 1 : prev.guestTeam.score;
       
-      // Create updated match with new scores
       const updatedMatch = {
         ...prev,
         homeTeam: {
@@ -295,7 +316,6 @@ export const BadmintonProvider = ({ children }: { children: React.ReactNode }) =
         }
       };
       
-      // Check if there's a winner
       const winner = checkWinner(updatedMatch);
       
       if (winner) {
@@ -307,6 +327,7 @@ export const BadmintonProvider = ({ children }: { children: React.ReactNode }) =
         
         try {
           saveGameHistory(finalMatch);
+          updateAllPlayerStats();
         } catch (error) {
           console.error("Error saving match history:", error);
         }
@@ -319,12 +340,13 @@ export const BadmintonProvider = ({ children }: { children: React.ReactNode }) =
         return finalMatch;
       }
       
-      // If no winner yet, continue the game
-      const matchWithUpdatedServe = updateServeReceive(isHomeTeam);
-      
-      return {
+      const result = {
         ...updatedMatch
       };
+      
+      updateServeReceive(isHomeTeam);
+      
+      return result;
     });
   };
 
@@ -399,6 +421,10 @@ export const BadmintonProvider = ({ children }: { children: React.ReactNode }) =
       description: `The winning score is now set to ${score} points.`,
     });
   };
+
+  useEffect(() => {
+    updateServeReceive(true);
+  }, []);
 
   return (
     <BadmintonContext.Provider
