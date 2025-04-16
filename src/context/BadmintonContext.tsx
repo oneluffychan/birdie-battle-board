@@ -137,93 +137,95 @@ export const BadmintonProvider = ({ children }: { children: React.ReactNode }) =
     });
   };
 
-  const updateServeReceive = (isHomeTeamScored: boolean) => {
-    console.log("Updating serve and receive", isHomeTeamScored);
+  const updateServeReceive = (homeTeamScore: number, guestTeamScore: number, isHomeTeamScored: boolean) => {
+    console.log("Updating serve and receive", { homeTeamScore, guestTeamScore, isHomeTeamScored });
     
-    setMatch(prev => {
-      const totalScore = prev.homeTeam.score + prev.guestTeam.score;
-      const isEvenScore = totalScore % 2 === 0;
+    const totalScore = homeTeamScore + guestTeamScore;
+    const isEvenScore = totalScore % 2 === 0;
+    
+    if (isSingles) {
+      // In singles - the server alternates sides when the server's score is even/odd
+      // If you score, you serve; if you lose, opponent serves
+      const isHomeTeamServing = isHomeTeamScored;
       
-      if (isSingles) {
-        // In singles, if you score a point, you serve
-        // The server always stands on the right court when the score is even and on the left when odd
+      setMatch(prev => ({
+        ...prev,
+        homeTeam: {
+          ...prev.homeTeam,
+          players: prev.homeTeam.players.map(p => ({
+            ...p,
+            isServing: isHomeTeamServing,
+            isReceiving: !isHomeTeamServing,
+          })).slice(0, 1),
+        },
+        guestTeam: {
+          ...prev.guestTeam,
+          players: prev.guestTeam.players.map(p => ({
+            ...p,
+            isServing: !isHomeTeamServing,
+            isReceiving: isHomeTeamServing,
+          })).slice(0, 1),
+        }
+      }));
+    } else {
+      // For doubles
+      // The serving team alternates players after each serving turn
+      // The serving team changes when the receiving team scores
+      // Server alternates between courts on every point
+      
+      // Determine which team is serving
+      const isHomeTeamServing = isHomeTeamScored;
+      
+      setMatch(prev => {
+        const updatedHomeTeamPlayers = prev.homeTeam.players.map((p, idx) => {
+          // In doubles, player position alternates based on whether score is even/odd
+          const shouldServe = isHomeTeamServing && (
+            isEvenScore ? idx === 0 : idx === 1
+          );
+          
+          const shouldReceive = !isHomeTeamServing && (
+            isEvenScore ? idx === 0 : idx === 1
+          );
+          
+          return {
+            ...p,
+            isServing: shouldServe,
+            isReceiving: shouldReceive
+          };
+        });
+        
+        const updatedGuestTeamPlayers = prev.guestTeam.players.map((p, idx) => {
+          const shouldServe = !isHomeTeamServing && (
+            isEvenScore ? idx === 0 : idx === 1
+          );
+          
+          const shouldReceive = isHomeTeamServing && (
+            isEvenScore ? idx === 0 : idx === 1
+          );
+          
+          return {
+            ...p,
+            isServing: shouldServe,
+            isReceiving: shouldReceive
+          };
+        });
+        
+        console.log(`Total score: ${totalScore}, Even score: ${isEvenScore}`);
+        console.log(`Home team serving: ${isHomeTeamServing}`);
+        
         return {
           ...prev,
           homeTeam: {
             ...prev.homeTeam,
-            players: prev.homeTeam.players.map(p => ({
-              ...p,
-              isServing: isHomeTeamScored,
-              isReceiving: !isHomeTeamScored,
-            })).slice(0, 1),
+            players: updatedHomeTeamPlayers
           },
           guestTeam: {
             ...prev.guestTeam,
-            players: prev.guestTeam.players.map(p => ({
-              ...p,
-              isServing: !isHomeTeamScored,
-              isReceiving: isHomeTeamScored,
-            })).slice(0, 1),
+            players: updatedGuestTeamPlayers
           }
         };
-      }
-      
-      // For doubles
-      // The server alternates between right and left court after each point won
-      // If the serving side wins a point, the same player continues to serve but from the alternate court
-      // If the receiving side wins a point, they become the new serving side
-      
-      // Determine who is serving - the team that just scored will be serving next
-      const isHomeTeamServing = isHomeTeamScored;
-      
-      const updatedHomeTeamPlayers = prev.homeTeam.players.map((p, idx) => {
-        // In doubles, if your team serves, you alternate who serves based on score parity
-        const shouldServe = isHomeTeamServing && (
-          isEvenScore ? idx === 0 : idx === 1
-        );
-        
-        const shouldReceive = !isHomeTeamServing && (
-          isEvenScore ? idx === 0 : idx === 1
-        );
-        
-        return {
-          ...p,
-          isServing: shouldServe,
-          isReceiving: shouldReceive
-        };
       });
-      
-      const updatedGuestTeamPlayers = prev.guestTeam.players.map((p, idx) => {
-        const shouldServe = !isHomeTeamServing && (
-          isEvenScore ? idx === 0 : idx === 1
-        );
-        
-        const shouldReceive = isHomeTeamServing && (
-          isEvenScore ? idx === 0 : idx === 1
-        );
-        
-        return {
-          ...p,
-          isServing: shouldServe,
-          isReceiving: shouldReceive
-        };
-      });
-      
-      console.log(`Total score: ${totalScore}, Even score: ${isEvenScore}`);
-      console.log(`Home team serving: ${isHomeTeamServing}`);
-      
-      return {
-        ...prev,
-        homeTeam: {
-          ...prev.homeTeam,
-          players: updatedHomeTeamPlayers
-        },
-        guestTeam: {
-          ...prev.guestTeam,
-          players: updatedGuestTeamPlayers
-        }
-      };
-    });
+    }
   };
 
   const toggleMatchType = () => {
@@ -269,6 +271,11 @@ export const BadmintonProvider = ({ children }: { children: React.ReactNode }) =
         ? "Switched to singles match mode." 
         : "Switched to doubles match mode."
     });
+
+    // Update serving and receiving when match type changes
+    const homeTeamScore = match.homeTeam.score;
+    const guestTeamScore = match.guestTeam.score;
+    updateServeReceive(homeTeamScore, guestTeamScore, true);
   };
 
   const checkWinner = (matchToCheck: Match): Team | undefined => {
@@ -344,14 +351,22 @@ export const BadmintonProvider = ({ children }: { children: React.ReactNode }) =
         return finalMatch;
       }
       
-      // Update who is serving and receiving before returning the updated state
-      // First, return the updated match
+      // First return the updated match
       return updatedMatch;
     });
     
-    // Then update the serving/receiving players
-    // We do this separately to ensure we're working with the latest state
-    updateServeReceive(match.homeTeam.id === teamId);
+    // Then in a separate operation update the serving/receiving status using the LATEST state
+    setTimeout(() => {
+      setMatch(latest => {
+        // Update who is serving and receiving with the latest scores
+        updateServeReceive(
+          latest.homeTeam.score, 
+          latest.guestTeam.score, 
+          latest.homeTeam.id === teamId
+        );
+        return latest;
+      });
+    }, 0);
   };
 
   const decrementScore = (teamId: string) => {
@@ -385,7 +400,18 @@ export const BadmintonProvider = ({ children }: { children: React.ReactNode }) =
     });
     
     // Update serve/receive in a separate call to ensure we're using the latest state
-    updateServeReceive(match.homeTeam.id !== teamId);
+    setTimeout(() => {
+      setMatch(latest => {
+        // For decrement, the team that DIDN'T lose the point would be serving
+        // So we pass the opposite of isHomeTeam
+        updateServeReceive(
+          latest.homeTeam.score, 
+          latest.guestTeam.score, 
+          latest.homeTeam.id !== teamId
+        );
+        return latest;
+      });
+    }, 0);
   };
 
   const completeMatch = () => {
@@ -429,12 +455,20 @@ export const BadmintonProvider = ({ children }: { children: React.ReactNode }) =
 
   // Initialize serving and receiving players when the component mounts
   useEffect(() => {
-    updateServeReceive(true);
+    updateServeReceive(
+      match.homeTeam.score, 
+      match.guestTeam.score, 
+      true
+    );
   }, []);
 
   // Update serving and receiving players when match type changes
   useEffect(() => {
-    updateServeReceive(true);
+    updateServeReceive(
+      match.homeTeam.score, 
+      match.guestTeam.score, 
+      true
+    );
   }, [isSingles]);
 
   return (

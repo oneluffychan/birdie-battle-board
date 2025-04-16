@@ -44,7 +44,7 @@ const ServeIndicator: React.FC = () => {
           <span className="text-gray-600 font-medium">Serving:</span>
           <AnimatePresence mode="wait">
             <motion.span 
-              key={servingPlayer?.id || 'serving'}
+              key={`serving-${servingPlayer?.id || 'unknown'}-${match.homeTeam.score}-${match.guestTeam.score}`}
               className={`font-medium px-3 py-1 rounded-full ${
                 isHomeTeamServing 
                   ? 'bg-blue-100 text-blue-800' 
@@ -82,7 +82,7 @@ const ServeIndicator: React.FC = () => {
           <span className="text-gray-600 font-medium">Receiving:</span>
           <AnimatePresence mode="wait">
             <motion.span 
-              key={receivingPlayer?.id || 'receiving'}
+              key={`receiving-${receivingPlayer?.id || 'unknown'}-${match.homeTeam.score}-${match.guestTeam.score}`}
               className={`font-medium px-3 py-1 rounded-full ${
                 !isHomeTeamServing 
                   ? 'bg-blue-100 text-blue-800' 
