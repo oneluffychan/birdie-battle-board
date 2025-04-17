@@ -5,7 +5,7 @@ import { useBadminton } from '@/context/BadmintonContext';
 import { Server, MousePointer } from 'lucide-react';
 
 const ServeIndicator: React.FC = () => {
-  const { match } = useBadminton();
+  const { match, isSingles } = useBadminton();
   
   // Find the serving and receiving players
   const servingPlayer = [...match.homeTeam.players, ...match.guestTeam.players].find(
@@ -18,6 +18,7 @@ const ServeIndicator: React.FC = () => {
 
   const isHomeTeamServing = match.homeTeam.players.some(player => player.isServing);
   const totalScore = match.homeTeam.score + match.guestTeam.score;
+  const courtSide = totalScore % 2 === 0 ? 'Right' : 'Left';
 
   // Log serving and receiving players for debugging
   useEffect(() => {
@@ -25,7 +26,8 @@ const ServeIndicator: React.FC = () => {
     console.log('Current receiving player:', receivingPlayer?.name);
     console.log('Home team serving:', isHomeTeamServing);
     console.log('Total score:', totalScore);
-  }, [servingPlayer, receivingPlayer, isHomeTeamServing, totalScore]);
+    console.log('Court side:', courtSide);
+  }, [servingPlayer, receivingPlayer, isHomeTeamServing, totalScore, courtSide]);
 
   return (
     <motion.div 
@@ -110,7 +112,8 @@ const ServeIndicator: React.FC = () => {
 
       <div className="mt-3 md:mt-0 text-xs text-gray-500 border-t md:border-t-0 md:border-l border-gray-100 md:pl-4 pt-3 md:pt-0 w-full md:w-auto">
         <p>Score: {match.homeTeam.score}-{match.guestTeam.score}</p>
-        <p>Court: {totalScore % 2 === 0 ? 'Right' : 'Left'}</p>
+        <p>Court: {courtSide}</p>
+        <p>Format: {isSingles ? 'Singles' : 'Doubles'}</p>
       </div>
     </motion.div>
   );

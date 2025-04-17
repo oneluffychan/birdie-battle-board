@@ -184,12 +184,16 @@ export const BadmintonProvider = ({ children }: { children: React.ReactNode }) =
         };
       } 
       else {
+        const homeServingPlayerIdx = isEvenScore ? 0 : 1;
+        const guestServingPlayerIdx = isEvenScore ? 0 : 1;
+        
         const updatedHomeTeamPlayers = prev.homeTeam.players.map((p, idx) => {
-          const shouldServe = newHomeTeamServing && 
-            ((idx === 0 && isEvenScore) || (idx === 1 && !isEvenScore));
+          const shouldServe = newHomeTeamServing && (
+            (isServingTeamScoring && p.isServing) || 
+            (!isServingTeamScoring && idx === homeServingPlayerIdx)
+          );
           
-          const shouldReceive = !newHomeTeamServing && 
-            ((idx === 0 && isEvenScore) || (idx === 1 && !isEvenScore));
+          const shouldReceive = !newHomeTeamServing && idx === homeServingPlayerIdx;
           
           return {
             ...p,
@@ -199,11 +203,12 @@ export const BadmintonProvider = ({ children }: { children: React.ReactNode }) =
         });
         
         const updatedGuestTeamPlayers = prev.guestTeam.players.map((p, idx) => {
-          const shouldServe = !newHomeTeamServing && 
-            ((idx === 0 && isEvenScore) || (idx === 1 && !isEvenScore));
+          const shouldServe = !newHomeTeamServing && (
+            (isServingTeamScoring && p.isServing) ||
+            (!isServingTeamScoring && idx === guestServingPlayerIdx)
+          );
           
-          const shouldReceive = newHomeTeamServing && 
-            ((idx === 0 && isEvenScore) || (idx === 1 && !isEvenScore));
+          const shouldReceive = newHomeTeamServing && idx === guestServingPlayerIdx;
           
           return {
             ...p,
