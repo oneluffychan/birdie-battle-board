@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { GameHistory, PlayerStats, PlayerRoster, Match, Team, Player } from '@/types/badminton';
 import { v4 as uuidv4 } from 'uuid';
@@ -411,6 +410,7 @@ export const getPlayerStats = async (): Promise<PlayerStats[]> => {
       };
     });
     
+    console.log("Player stats calculated:", playerStats);
     return playerStats;
   } catch (error) {
     console.error("Error calculating player stats:", error);
@@ -423,10 +423,13 @@ export const getTopPlayers = async (limit = 5): Promise<PlayerStats[]> => {
   try {
     const allStats = await getPlayerStats();
     
-    return allStats
+    const topPlayers = allStats
       .filter(player => player.gamesPlayed >= 3)  // At least 3 games to qualify
       .sort((a, b) => b.winPercentage - a.winPercentage)
       .slice(0, limit);
+      
+    console.log("Top players calculated:", topPlayers);
+    return topPlayers;
   } catch (error) {
     console.error("Error getting top players:", error);
     return [];

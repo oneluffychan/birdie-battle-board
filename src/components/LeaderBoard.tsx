@@ -15,14 +15,23 @@ const LeaderBoard: React.FC = () => {
 
   useEffect(() => {
     const fetchStats = async () => {
-      setLoading(true);
-      const [top, all] = await Promise.all([
-        getTopPlayers(5),
-        getPlayerStats()
-      ]);
-      setTopPlayers(top);
-      setAllPlayers(all);
-      setLoading(false);
+      try {
+        setLoading(true);
+        const [top, all] = await Promise.all([
+          getTopPlayers(5),
+          getPlayerStats()
+        ]);
+        
+        console.log("Top players fetched:", top);
+        console.log("All players fetched:", all);
+        
+        setTopPlayers(top);
+        setAllPlayers(all);
+      } catch (error) {
+        console.error("Error fetching player stats:", error);
+      } finally {
+        setLoading(false);
+      }
     };
 
     fetchStats();
@@ -121,33 +130,33 @@ const LeaderBoard: React.FC = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {topPlayers.map((player, index) => (
-                  <motion.tr
-                    key={player.id}
-                    variants={item}
-                    className={index % 2 === 0 ? 'bg-muted/50' : undefined}
-                  >
-                    <TableCell className="font-medium flex items-center">
-                      {getIcon(index)}
-                      <span className="ml-1">{index + 1}</span>
-                    </TableCell>
-                    <TableCell className="font-medium">{player.name}</TableCell>
-                    <TableCell className="text-right">
-                      <Badge 
-                        variant={index === 0 ? 'default' : 'outline'} 
-                        className={index === 0 ? 'bg-yellow-500 hover:bg-yellow-600' : ''}
-                      >
-                        {player.winPercentage}%
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">{player.gamesWon}/{player.gamesPlayed - player.gamesWon}</TableCell>
-                    <TableCell className="text-right">{player.gamesPlayed}</TableCell>
-                    <TableCell className="text-right">{player.totalServes || 0}</TableCell>
-                    <TableCell className="text-right">{player.totalReceives || 0}</TableCell>
-                  </motion.tr>
-                ))}
-                
-                {topPlayers.length === 0 && (
+                {topPlayers.length > 0 ? (
+                  topPlayers.map((player, index) => (
+                    <motion.tr
+                      key={player.id}
+                      variants={item}
+                      className={index % 2 === 0 ? 'bg-muted/50' : undefined}
+                    >
+                      <TableCell className="font-medium flex items-center">
+                        {getIcon(index)}
+                        <span className="ml-1">{index + 1}</span>
+                      </TableCell>
+                      <TableCell className="font-medium">{player.name}</TableCell>
+                      <TableCell className="text-right">
+                        <Badge 
+                          variant={index === 0 ? 'default' : 'outline'} 
+                          className={index === 0 ? 'bg-yellow-500 hover:bg-yellow-600' : ''}
+                        >
+                          {player.winPercentage}%
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">{player.gamesWon}/{player.gamesPlayed - player.gamesWon}</TableCell>
+                      <TableCell className="text-right">{player.gamesPlayed}</TableCell>
+                      <TableCell className="text-right">{player.totalServes || 0}</TableCell>
+                      <TableCell className="text-right">{player.totalReceives || 0}</TableCell>
+                    </motion.tr>
+                  ))
+                ) : (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
                       No qualified players yet (need at least 3 games)
@@ -181,22 +190,30 @@ const LeaderBoard: React.FC = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {allPlayers
-                  .sort((a, b) => b.winPercentage - a.winPercentage)
-                  .map((player, index) => (
-                    <motion.tr
-                      key={player.id}
-                      variants={item}
-                      className={index % 2 === 0 ? 'bg-muted/50' : undefined}
-                    >
-                      <TableCell className="font-medium">{player.name}</TableCell>
-                      <TableCell className="text-right">{player.winPercentage}%</TableCell>
-                      <TableCell className="text-right">{player.gamesWon}</TableCell>
-                      <TableCell className="text-right">{player.gamesPlayed}</TableCell>
-                      <TableCell className="text-right">{player.totalServes || 0}</TableCell>
-                      <TableCell className="text-right">{player.totalReceives || 0}</TableCell>
-                    </motion.tr>
-                  ))}
+                {allPlayers.length > 0 ? (
+                  allPlayers
+                    .sort((a, b) => b.winPercentage - a.winPercentage)
+                    .map((player, index) => (
+                      <motion.tr
+                        key={player.id}
+                        variants={item}
+                        className={index % 2 === 0 ? 'bg-muted/50' : undefined}
+                      >
+                        <TableCell className="font-medium">{player.name}</TableCell>
+                        <TableCell className="text-right">{player.winPercentage}%</TableCell>
+                        <TableCell className="text-right">{player.gamesWon}</TableCell>
+                        <TableCell className="text-right">{player.gamesPlayed}</TableCell>
+                        <TableCell className="text-right">{player.totalServes || 0}</TableCell>
+                        <TableCell className="text-right">{player.totalReceives || 0}</TableCell>
+                      </motion.tr>
+                    ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
+                      No player stats available
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </div>
