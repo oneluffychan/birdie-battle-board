@@ -157,7 +157,9 @@ export const BadmintonProvider = ({ children }: { children: React.ReactNode }) =
       });
       
       const newHomeTeamServing = isPointScored
-        ? (isHomeTeamServing && isServingTeamScoring) || (!isHomeTeamServing && !isServingTeamScoring)
+        ? isServingTeamScoring 
+          ? isHomeTeamServing
+          : !isHomeTeamServing
         : isHomeTeamServing;
       
       if (isSingles) {
@@ -272,16 +274,7 @@ export const BadmintonProvider = ({ children }: { children: React.ReactNode }) =
     });
 
     setTimeout(() => {
-      setMatch(latest => {
-        const isHomeTeamServing = latest.homeTeam.players.some(p => p.isServing);
-        updateServeReceive(
-          latest.homeTeam.score, 
-          latest.guestTeam.score, 
-          isHomeTeamServing,
-          false
-        );
-        return latest;
-      });
+      updateServeReceive(match.homeTeam.id, false);
     }, 0);
   };
 
