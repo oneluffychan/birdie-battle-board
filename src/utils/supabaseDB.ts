@@ -329,7 +329,7 @@ export const getGameHistory = async (): Promise<GameHistory[]> => {
 // Get player statistics from Supabase
 export const getPlayerStats = async (): Promise<PlayerStats[]> => {
   try {
-    console.log("Fetching player stats");
+    console.log("Fetching player stats - started");
     
     // Get players
     const { data: players, error: playersError } = await supabase
@@ -341,7 +341,10 @@ export const getPlayerStats = async (): Promise<PlayerStats[]> => {
       return [];
     }
     
+    console.log(`Found ${players.length} players in database`);
+    
     if (players.length === 0) {
+      console.log("No players found in database");
       return [];
     }
     
@@ -362,6 +365,8 @@ export const getPlayerStats = async (): Promise<PlayerStats[]> => {
       return [];
     }
     
+    console.log(`Found ${matches?.length || 0} completed matches`);
+    
     // Get all match_players
     const { data: matchPlayers, error: matchPlayersError } = await supabase
       .from('match_players')
@@ -378,11 +383,18 @@ export const getPlayerStats = async (): Promise<PlayerStats[]> => {
       return [];
     }
     
+    console.log(`Found ${matchPlayers?.length || 0} match player records`);
+    
     // Calculate stats for each player
     const playerStats: PlayerStats[] = players.map(player => {
       const playerMatches = matchPlayers?.filter(mp => mp.player_id === player.id) || [];
       
-      const gamesPlayed = new Set(playerMatches.map(pm => pm.match_id)).size;
+      console.log(`Player ${player.name} (${player.id}): found ${playerMatches.length} match records`);
+      
+      const matchIds = new Set(playerMatches.map(pm => pm.match_id));
+      const gamesPlayed = matchIds.size;
+      
+      console.log(`Player ${player.name}: played in ${gamesPlayed} unique matches`);
       
       let gamesWon = 0;
       for (const match of matches || []) {
@@ -399,6 +411,8 @@ export const getPlayerStats = async (): Promise<PlayerStats[]> => {
       const totalReceives = playerMatches.reduce((sum, mp) => sum + (mp.receives_count || 0), 0);
       const winPercentage = gamesPlayed > 0 ? Math.round((gamesWon / gamesPlayed) * 100) : 0;
       
+      console.log(`Stats for ${player.name}: ${gamesWon}/${gamesPlayed} (${winPercentage}%), serves: ${totalServes}, receives: ${totalReceives}`);
+      
       return {
         id: player.id,
         name: player.name,
@@ -410,7 +424,7 @@ export const getPlayerStats = async (): Promise<PlayerStats[]> => {
       };
     });
     
-    console.log("Player stats calculated:", playerStats);
+    console.log("Player stats calculated successfully:", playerStats);
     return playerStats;
   } catch (error) {
     console.error("Error calculating player stats:", error);
@@ -421,14 +435,19 @@ export const getPlayerStats = async (): Promise<PlayerStats[]> => {
 // Get top players based on win percentage
 export const getTopPlayers = async (limit = 5): Promise<PlayerStats[]> => {
   try {
+    console.log(`Fetching top ${limit} players...`);
     const allStats = await getPlayerStats();
     
-    const topPlayers = allStats
-      .filter(player => player.gamesPlayed >= 3)  // At least 3 games to qualify
+    console.log(`Filtering players with at least 3 games from ${allStats.length} total players`);
+    
+    const qualifiedPlayers = allStats.filter(player => player.gamesPlayed >= 3);
+    console.log(`Found ${qualifiedPlayers.length} qualified players (played 3+ games)`);
+    
+    const topPlayers = qualifiedPlayers
       .sort((a, b) => b.winPercentage - a.winPercentage)
       .slice(0, limit);
       
-    console.log("Top players calculated:", topPlayers);
+    console.log(`Top ${topPlayers.length} players calculated:`, topPlayers);
     return topPlayers;
   } catch (error) {
     console.error("Error getting top players:", error);

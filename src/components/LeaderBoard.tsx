@@ -6,29 +6,76 @@ import { PlayerStats } from '@/types/badminton';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Trophy, Medal, Award, Star, Server, MousePointer } from 'lucide-react';
+import { Trophy, Medal, Award, Star, Server, MousePointer, AlertTriangle } from 'lucide-react';
+import { toast } from '@/components/ui/use-toast';
 
 const LeaderBoard: React.FC = () => {
   const [allPlayers, setAllPlayers] = useState<PlayerStats[]>([]);
   const [topPlayers, setTopPlayers] = useState<PlayerStats[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
         setLoading(true);
+        setError(null);
+        
+        console.log("Fetching player statistics...");
+        
         const [top, all] = await Promise.all([
           getTopPlayers(5),
           getPlayerStats()
         ]);
         
-        console.log("Top players fetched:", top);
-        console.log("All players fetched:", all);
+        console.log("Top players raw data:", top);
+        console.log("All players raw data:", all);
         
-        setTopPlayers(top);
-        setAllPlayers(all);
+        // Validate data before setting state
+        if (!Array.isArray(all)) {
+          console.error("Invalid player stats format:", all);
+          setError("Failed to load player data: Invalid format");
+          return;
+        }
+        
+        // Make sure we have valid data with the required properties
+        const validatedAll = all
+          .filter(player => player && typeof player === 'object')
+          .map(player => ({
+            id: player.id || 'unknown',
+            name: player.name || 'Unknown Player',
+            gamesPlayed: player.gamesPlayed || 0,
+            gamesWon: player.gamesWon || 0,
+            winPercentage: player.winPercentage || 0,
+            totalServes: player.totalServes || 0,
+            totalReceives: player.totalReceives || 0
+          }));
+        
+        // Validate and sort top players by win percentage
+        const validatedTop = Array.isArray(top) 
+          ? top
+              .filter(player => player && typeof player === 'object' && player.gamesPlayed >= 3)
+              .sort((a, b) => b.winPercentage - a.winPercentage)
+              .slice(0, 5)
+          : [];
+        
+        console.log("Validated top players:", validatedTop);
+        console.log("Validated all players:", validatedAll);
+        
+        setTopPlayers(validatedTop);
+        setAllPlayers(validatedAll);
+        
+        if (validatedAll.length === 0) {
+          console.warn("No player data available");
+        }
       } catch (error) {
         console.error("Error fetching player stats:", error);
+        setError("Failed to load player statistics");
+        toast({
+          title: "Error loading leaderboard",
+          description: "There was a problem fetching player statistics",
+          variant: "destructive"
+        });
       } finally {
         setLoading(false);
       }
@@ -50,15 +97,30 @@ const LeaderBoard: React.FC = () => {
     );
   }
 
+  if (error) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="bg-red-50 border border-red-200 rounded-md p-4 text-center"
+      >
+        <AlertTriangle className="h-6 w-6 text-red-500 mx-auto mb-2" />
+        <p className="text-red-700">{error}</p>
+        <p className="text-gray-600 mt-2 text-sm">Please try again later or contact support.</p>
+      </motion.div>
+    );
+  }
+
   if (allPlayers.length === 0) {
     return (
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="text-center py-8"
+        className="text-center py-8 bg-gray-50 border border-gray-200 rounded-md"
       >
-        <p className="text-gray-500">No player stats yet. Play some games!</p>
+        <p className="text-gray-500 my-4">No player stats yet. Play some games!</p>
       </motion.div>
     );
   }
