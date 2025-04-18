@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { getPlayerStats, getTopPlayers } from '@/utils/supabaseDB';
@@ -31,14 +30,12 @@ const LeaderBoard: React.FC = () => {
         console.log("Top players raw data:", top);
         console.log("All players raw data:", all);
         
-        // Validate data before setting state
         if (!Array.isArray(all)) {
           console.error("Invalid player stats format:", all);
           setError("Failed to load player data: Invalid format");
           return;
         }
         
-        // Make sure we have valid data with the required properties
         const validatedAll = all
           .filter(player => player && typeof player === 'object')
           .map(player => ({
@@ -51,7 +48,6 @@ const LeaderBoard: React.FC = () => {
             totalReceives: player.totalReceives || 0
           }));
         
-        // Validate and sort top players by win percentage
         const validatedTop = Array.isArray(top) 
           ? top
               .filter(player => player && typeof player === 'object' && player.gamesPlayed >= 3)
@@ -103,11 +99,11 @@ const LeaderBoard: React.FC = () => {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="bg-red-50 border border-red-200 rounded-md p-4 text-center"
+        className="bg-destructive/10 border border-destructive rounded-md p-4 text-center"
       >
-        <AlertTriangle className="h-6 w-6 text-red-500 mx-auto mb-2" />
-        <p className="text-red-700">{error}</p>
-        <p className="text-gray-600 mt-2 text-sm">Please try again later or contact support.</p>
+        <AlertTriangle className="h-6 w-6 text-destructive mx-auto mb-2" />
+        <p className="text-destructive">{error}</p>
+        <p className="text-muted-foreground mt-2 text-sm">Please try again later or contact support.</p>
       </motion.div>
     );
   }
@@ -118,14 +114,13 @@ const LeaderBoard: React.FC = () => {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="text-center py-8 bg-gray-50 border border-gray-200 rounded-md"
+        className="text-center py-8 bg-muted/50 border border-border rounded-md"
       >
-        <p className="text-gray-500 my-4">No player stats yet. Play some games!</p>
+        <p className="text-muted-foreground my-4">No player stats yet. Play some games!</p>
       </motion.div>
     );
   }
 
-  // Animations
   const container = {
     hidden: { opacity: 0 },
     show: {
@@ -157,33 +152,33 @@ const LeaderBoard: React.FC = () => {
       animate="show"
       className="space-y-6"
     >
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+      <Card className="bg-card">
+        <CardHeader className="border-b border-border/40">
+          <CardTitle className="flex items-center gap-2 text-card-foreground">
             <Trophy className="h-5 w-5 text-yellow-500" />
             Top Players
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-muted-foreground">
             Players ranked by win percentage (minimum 3 games)
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="rounded-md border">
+        <CardContent className="p-0">
+          <div className="rounded-md">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[50px]">Rank</TableHead>
-                  <TableHead>Player</TableHead>
-                  <TableHead className="text-right">Win %</TableHead>
-                  <TableHead className="text-right">W/L</TableHead>
-                  <TableHead className="text-right">Games</TableHead>
-                  <TableHead className="text-right">
+                <TableRow className="hover:bg-muted/50 border-b border-border/40">
+                  <TableHead className="w-[50px] text-muted-foreground">Rank</TableHead>
+                  <TableHead className="text-muted-foreground">Player</TableHead>
+                  <TableHead className="text-right text-muted-foreground">Win %</TableHead>
+                  <TableHead className="text-right text-muted-foreground">W/L</TableHead>
+                  <TableHead className="text-right text-muted-foreground">Games</TableHead>
+                  <TableHead className="text-right text-muted-foreground">
                     <div className="flex items-center justify-end gap-1">
                       <Server className="h-4 w-4" />
                       <span>Serves</span>
                     </div>
                   </TableHead>
-                  <TableHead className="text-right">
+                  <TableHead className="text-right text-muted-foreground">
                     <div className="flex items-center justify-end gap-1">
                       <MousePointer className="h-4 w-4" />
                       <span>Receives</span>
@@ -197,7 +192,7 @@ const LeaderBoard: React.FC = () => {
                     <motion.tr
                       key={player.id}
                       variants={item}
-                      className={index % 2 === 0 ? 'bg-muted/50' : undefined}
+                      className="hover:bg-muted/50 transition-colors text-card-foreground"
                     >
                       <TableCell className="font-medium flex items-center">
                         {getIcon(index)}
@@ -207,7 +202,7 @@ const LeaderBoard: React.FC = () => {
                       <TableCell className="text-right">
                         <Badge 
                           variant={index === 0 ? 'default' : 'outline'} 
-                          className={index === 0 ? 'bg-yellow-500 hover:bg-yellow-600' : ''}
+                          className={index === 0 ? 'bg-primary hover:bg-primary/90' : ''}
                         >
                           {player.winPercentage}%
                         </Badge>
@@ -231,24 +226,24 @@ const LeaderBoard: React.FC = () => {
         </CardContent>
       </Card>
       
-      <Card>
-        <CardHeader>
-          <CardTitle>All Players</CardTitle>
-          <CardDescription>
+      <Card className="bg-card">
+        <CardHeader className="border-b border-border/40">
+          <CardTitle className="text-card-foreground">All Players</CardTitle>
+          <CardDescription className="text-muted-foreground">
             Stats for all players who have played games
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="rounded-md border overflow-hidden">
+        <CardContent className="p-0">
+          <div className="rounded-md">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Player</TableHead>
-                  <TableHead className="text-right">Win %</TableHead>
-                  <TableHead className="text-right">Wins</TableHead>
-                  <TableHead className="text-right">Games</TableHead>
-                  <TableHead className="text-right">Serves</TableHead>
-                  <TableHead className="text-right">Receives</TableHead>
+                <TableRow className="hover:bg-muted/50 border-b border-border/40">
+                  <TableHead className="text-muted-foreground">Player</TableHead>
+                  <TableHead className="text-right text-muted-foreground">Win %</TableHead>
+                  <TableHead className="text-right text-muted-foreground">Wins</TableHead>
+                  <TableHead className="text-right text-muted-foreground">Games</TableHead>
+                  <TableHead className="text-right text-muted-foreground">Serves</TableHead>
+                  <TableHead className="text-right text-muted-foreground">Receives</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -259,7 +254,7 @@ const LeaderBoard: React.FC = () => {
                       <motion.tr
                         key={player.id}
                         variants={item}
-                        className={index % 2 === 0 ? 'bg-muted/50' : undefined}
+                        className="hover:bg-muted/50 transition-colors text-card-foreground"
                       >
                         <TableCell className="font-medium">{player.name}</TableCell>
                         <TableCell className="text-right">{player.winPercentage}%</TableCell>
