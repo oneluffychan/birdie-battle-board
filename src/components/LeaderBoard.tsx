@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { getPlayerStats, getTopPlayers } from '@/utils/supabaseDB';
 import { PlayerStats } from '@/types/badminton';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertTriangle } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 
@@ -105,11 +106,6 @@ const LeaderBoard: React.FC = () => {
     }
   };
 
-  const item = {
-    hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0 }
-  };
-
   return (
     <motion.div
       variants={container}
@@ -125,9 +121,30 @@ const LeaderBoard: React.FC = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="p-6 overflow-x-auto">
-          <pre className="text-sm text-card-foreground bg-muted/50 p-4 rounded-lg overflow-auto">
-            {JSON.stringify(topPlayers, null, 2)}
-          </pre>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Games Played</TableHead>
+                <TableHead>Games Won</TableHead>
+                <TableHead>Win %</TableHead>
+                <TableHead>Total Serves</TableHead>
+                <TableHead>Total Receives</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {topPlayers.map((player) => (
+                <TableRow key={player.id}>
+                  <TableCell>{player.name}</TableCell>
+                  <TableCell>{player.gamesPlayed}</TableCell>
+                  <TableCell>{player.gamesWon}</TableCell>
+                  <TableCell>{player.winPercentage}%</TableCell>
+                  <TableCell>{player.totalServes}</TableCell>
+                  <TableCell>{player.totalReceives}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
       
@@ -139,9 +156,30 @@ const LeaderBoard: React.FC = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="p-6 overflow-x-auto">
-          <pre className="text-sm text-card-foreground bg-muted/50 p-4 rounded-lg overflow-auto">
-            {JSON.stringify(allPlayers, null, 2)}
-          </pre>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Games Played</TableHead>
+                <TableHead>Games Won</TableHead>
+                <TableHead>Win %</TableHead>
+                <TableHead>Total Serves</TableHead>
+                <TableHead>Total Receives</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {allPlayers.map((player) => (
+                <TableRow key={player.id}>
+                  <TableCell>{player.name}</TableCell>
+                  <TableCell>{player.gamesPlayed}</TableCell>
+                  <TableCell>{player.gamesWon}</TableCell>
+                  <TableCell>{player.winPercentage}%</TableCell>
+                  <TableCell>{player.totalServes}</TableCell>
+                  <TableCell>{player.totalReceives}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
     </motion.div>
